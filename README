@@ -1,4 +1,4 @@
-To use audiotag, you must have:
+To use Audiotag, you must have:
 
 1. vorbiscomment (from vorbis-tools) in your path
 2. id3tag & id3info (from id3lib) in your path
@@ -31,8 +31,9 @@ BUGS
 
 None!
 
-No, I'm kidding.  audiotag requires more testing, and it currently doesn't
-handle failed pattern matches in any way at all.  Avoid that with the -p option
-before running it for real.
+No, I'm kidding.  Audiotag requires more testing.  Currently it doesn't handle
+symlinks, and may infinite loop when encountering recursive symlinks.
+
+Use the -p option before running it for real.
 
 

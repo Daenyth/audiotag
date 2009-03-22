@@ -5,7 +5,7 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = 0.5;
+our $VERSION = 0.6;
 our $PROGRAM = "audiotag";
 
 our $COPYRIGHT = <<COPYRIGHT;
@@ -23,6 +23,7 @@ our $pretend = 0;
 our $gt = 0;
 our $track_pattern = '';
 our $track = '';
+our $force_track = 0;
 our $genre = '';
 our $genre_pattern = '';
 our $artist = '';
@@ -34,21 +35,23 @@ our $title_pattern = '';
 our $force_title = 0;
 our $list_info = 0;
 our $display_version = 0;
+our $recursive = 0;
+our $recursive_noted = 0;
 
 our %id3_names = (
+	# long id?
 	TCON => "GENRE",
 	TRCK => "TRACKNUM",
 	TALB => "ALBUM",
 	TPE1 => "ARTIST",
-	TIT2 => "TITLE"
-);
+	TIT2 => "TITLE",
 
-our %id3_tags = (
-	GENRE    => "TCON",
-	TRACKNUM => "TRCK",
-	ALBUM    => "TALB",
-	ARTIST   => "TPE1",
-	TIT2     => "TITLE"
+	# short id?
+	TCO => "GENRE",
+	TRK => "TRACKNUM",
+	TAL => "ALBUM",
+	TP1 => "ARTIST",
+	TT2 => "TITLE"
 );
 
 # I grabbed these from id3lib - I hope they're correct
@@ -218,6 +221,7 @@ Set id3 and/or vorbis tags in mp3 and/or ogg files.
 Option:
   -G, --guesstrack              guess the track number (guess uses a simple
                                   pattern match of the filename, /(\\d\\d)\\./)
+  -T, --track=TRACK             set the track to TRACK
       --track-pattern=PATTERN   extract the track number from the filename
                                   using perl compatible regex PATTERN
   -g, --genre=GENRE             set the genre to GENRE
@@ -230,8 +234,9 @@ Option:
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
   -l, --list-info               list track info
-  -p, --pretent                 show what WOULD been done had --pretend not been
-                                used
+  -r, --recursive               descend into directories recursively
+  -p, --pretend                 show what WOULD have been done had --pretend
+                                  not been used
   -h, --help                    display this help and exit
   -V, --version                 output version information and exit
 USAGE
@@ -246,6 +251,14 @@ sub set_tag {
 	my %plus_tags;
 	my $_pretend = $pretend ? "I would be " : "";
 
+	# reset vars in case we get no match
+	if ($gt) { $track = "" }
+	if ($track_pattern) { $track = "" }
+	if ($title_pattern) { $title = "" }
+	if ($artist_pattern) { $artist = "" }
+	if ($album_pattern) { $album = "" }
+	if ($genre_pattern) { $genre = "" }
+
 	if ($track_pattern && $file =~ /$track_pattern/) { $track = $1 }
 	if ($title_pattern && $file =~ /$title_pattern/) { $title = $1 }
 	if ($artist_pattern && $file =~ /$artist_pattern/) { $artist = $1 }
@@ -259,7 +272,7 @@ sub set_tag {
 		return;
 	}
 
-	if ($gt && $file =~ /(\d\d)\./) { $track = sprintf("%d", $1) }
+	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) { $plus_tags{"GENRE"} = "+++"; $info{"GENRE"} = $genre }
 	if ($artist) { $plus_tags{"ARTIST"} = "+++";  $info{"ARTIST"} = $artist }
 	if ($album) { $plus_tags{"ALBUM"} = "+++";  $info{"ALBUM"} = $album }
@@ -294,18 +307,15 @@ sub set_tag {
 		push @cmd, $file;
 	}
 
-	print "\n", $_pretend, "Tagging \`$file'\n ", join("|", @result), "\n";
+	print "\n", $_pretend, "Tagging \`$file'\n", join("|", @result), "\n";
 	unless ($pretend) { quiet_system(@cmd) }
-
-	#if ($pretend) {
-	#	printf "I would have executed: %s", join(" ", @cmd) . "\n";
-	#}
 }
 
 sub get_vorbis_info {
 	my ($file) = @_;
 	my %info;
 
+	# FIXME - gracefully handle missing `vorbiscomment'
 	foreach (split /\n/, `vorbiscomment "$file"`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
@@ -319,8 +329,9 @@ sub get_mp3_info {
 	my ($file) = @_;
 	my %info;
 
+	# FIXME - gracefully handle missing `id3info'
 	foreach (split /\n/, `id3info "$file"`) {
-		if (/=== ([A-Z0-9]{4}) \(.*?\): (.*)/) {
+		if (/=== ([A-Z0-9]{3,4}) \(.*?\): (.*)/) {
 			if ($id3_names{$1}) { $info{ $id3_names{$1} } = $2 }
 		}
 	}
@@ -346,6 +357,9 @@ sub quiet_system {
 	select STDOUT; $| = 1;
 	select STDERR; $| = 1;
 
+	# MUST BE FIXED BEFORE 1.0!!!
+	# FIXME - we should be checking the exit status, and we should be
+	# capturing stdout/err for the user in case of a problem
 	system(@cmd);
 
 	close STDOUT;
@@ -356,10 +370,35 @@ sub quiet_system {
 	open STDERR, ">&", $olderr or die "Can't restore STDERR!: $!\n";
 }
 
+sub descend_into {
+	my (@dirs) = @_;
+	my @files;
+
+	while (local $_ = shift @dirs) {
+		if (opendir DIR, $_) {
+			foreach my $dirent (grep !/^\./, readdir DIR) {
+				# FIXME? - we're assuming catfile will work for files and
+				# dirs, but on some (non-Unix) platforms this may not be
+				# the case.  do we give a flying fuck about non-Unix
+				# platforms anyway?  probably not.
+				$dirent = File::Spec->catfile($_, $dirent);
+				if (-d $dirent) { push @dirs, $dirent }
+				elsif ($dirent =~ /(\.ogg|\.mp3)$/) { push @files, $dirent }
+			}
+		}
+		else { warn "can't open dir \`$_': $!\n" }
+	}
+
+	return @files;
+}
+
 main: {
+	my @files;
+
 	Getopt::Long::Configure ("bundling");
 	GetOptions(
 		'guesstrack|G' => \$gt,
+		'track|T=s' => \$track,
 		'track-pattern=s' => \$track_pattern,
 		'genre|g=s' => \$genre,
 		'genre-pattern=s' => \$genre_pattern,
@@ -369,8 +408,10 @@ main: {
 		'album-pattern=s' => \$album_pattern,
 		'title|t=s' => \$title,
 		'title-pattern=s' => \$title_pattern,
-		'pretent|p' => \$pretend,
+		'pretend|p' => \$pretend,
 		'force-title' => \$force_title,
+		'force-track' => \$force_track,
+		'recursive|r' => \$recursive,
 		'list-info|l' => \$list_info,
 		'version|V' => \$display_version,
 		'help|h' => \$help,
@@ -382,43 +423,87 @@ main: {
 	elsif ($display_version) {
 		print "$PROGRAM $VERSION\n$COPYRIGHT";
 	}
-	elsif ($list_info) {
-		foreach (@ARGV) {
-			my %info;
-			my @info;
-
-			if ($_ =~ /\.ogg$/) {
-				%info = get_vorbis_info($_);
-			}
-			else {
-				%info = get_mp3_info($_);
-			}
-			foreach (sort { $a cmp $b } keys %info)
-			{ push @info, "$_=$info{$_}" }
-			print "\`$_'\n", join("|", @info), "\n\n";
-		}
-	}
-	elsif (@ARGV && ($gt || $genre || $artist || $album || $title
-	              || $title_pattern || $artist_pattern || $album_pattern
-	              || $genre_pattern || $track_pattern) )
-	{
+	elsif (@ARGV && ( $gt
+	               || $list_info
+	               || $track
+	               || $genre
+	               || $artist
+	               || $album
+	               || $title
+	               || $title_pattern
+	               || $artist_pattern
+	               || $album_pattern
+	               || $genre_pattern
+	               || $track_pattern )
+	) {
 		if (!$force_title && $title && (@ARGV > 1)) {
 			print <<WTF;
 
 It does not make much sense to tag multiple files with the same title.  That's
 probably not what you meant to do, so I'm stopping now.  If I'm mistaken, and
 you really do want to tag multiple files with the same title, pass the
-(undocumented) --force-title option
+(undocumented) --force-title option.
 
 WTF
 			exit 1;
 		}
-		foreach (@ARGV) {
-			set_tag($_);
+		if (!$force_track && $track && (@ARGV > 1)) {
+			print <<WTF;
+
+It does not make much sense to tag multiple files with the same track number.
+That's probably not what you meant to do, so I'm stopping now.  If I'm
+mistaken, and you really do want to tag multiple files with the same track
+number, pass the (undocumented) --force-track option.
+
+WTF
+			exit 1;
+		}
+		@files = @ARGV;
+
+		while (local $_ = shift @files) {
+			if (-e) {
+				if (-l) {
+					# FIXME - must check for recursive symlinks before
+					# implementing symlink traversal
+					print "FIXME - I don't handle symlinks yet.  sorry...\n";
+				}
+				elsif (-d) {
+					if ($recursive) { push @files, descend_into($_) }
+					else {
+						unless ($recursive_noted) {
+							$recursive_noted = 1;
+							print <<WTF;
+
+Pass the --recursive option if you want to descend into directories.
+
+WTF
+							sleep 2;
+						}
+					}
+				}
+				else {
+					if ($list_info) {
+						my %info;
+						my @info;
+
+						if ($_ =~ /\.ogg$/) {
+							%info = get_vorbis_info($_);
+						}
+						else {
+							%info = get_mp3_info($_);
+						}
+						foreach (sort { $a cmp $b } keys %info)
+						{ push @info, "$_=$info{$_}" }
+						print "\`$_'\n", join("|", @info), "\n\n";
+					}
+					else { set_tag($_) }
+				}
+			}
+			else { print "I don't see any file or directory by the name \`$_'\n" }
 		}
 	}
 	else {
-		Usage();
+		exit Usage();
 	}
 }
 

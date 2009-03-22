@@ -1,0 +1,18 @@
+2003.11.03  Ryan McGuigan <ryan@tempestgames.com>
+	* README: updated
+	* RELEASE 0.6
+
+
+2003.11.02  Ryan McGuigan <ryan@tempestgames.com>
+	* major bug fixes
+	* added directory traversal (--recursive/-r)
+	* added --track/-T option
+
+
+2003.10.29  Ryan McGuigan <ryan@tempestgames.com>
+	* RELEASE 0.5
+
+
+2003.10.??  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: started project
+
