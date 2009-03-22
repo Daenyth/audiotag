@@ -5,8 +5,8 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = 0.6;
-our $PROGRAM = "audiotag";
+our $VERSION = 0.7;
+our $PROGRAM = "Audiotag";
 
 our $COPYRIGHT = <<COPYRIGHT;
 Written by Ryan McGuigan
@@ -18,6 +18,7 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 COPYRIGHT
 
+our $insane_error = "";
 our $help = 0;
 our $pretend = 0;
 our $gt = 0;
@@ -265,8 +266,8 @@ sub set_tag {
 	if ($album_pattern && $file =~ /$album_pattern/) { $album = $1 }
 	if ($genre_pattern && $file =~ /$genre_pattern/) { $genre = $1 }
 	
-	if ($file =~ /\.ogg$/) { %info = get_vorbis_info($file) }
-	elsif ($file =~ /\.mp3$/) { %info = get_mp3_info($file) }
+	if ($file =~ /\.ogg$/i) { %info = get_vorbis_info($file) }
+	elsif ($file =~ /\.mp3$/i) { %info = get_mp3_info($file) }
 	else {
 		print STDERR "$file: the filename must end in .ogg or .mp3\n";
 		return;
@@ -280,24 +281,24 @@ sub set_tag {
 	if ($track) { $plus_tags{"TRACKNUM"} = $plus_tags{"TRACKNUMBER"} = "+++";
 		$info{"TRACKNUM"} = $info{"TRACKNUMBER"} = $track }
 
-	if ($file =~ /\.ogg$/) {
+	if ($file =~ /\.ogg$/i) {
 		push @cmd, "vorbiscomment";
 		push @cmd, "-w";
 
 		foreach (sort { $a cmp $b } keys %info) {
-			$plus_tags{$_} ||= "";
-			push @result, "$plus_tags{$_}$_=$info{$_}";
+			$plus_tags{$_} ||= "===";
+			push @result, "$plus_tags{$_} $_=$info{$_}";
 			push @cmd, "-t", "$_=$info{$_}"
 		}
 		push @cmd, $file;
 	}
-	elsif ($file =~ /\.mp3$/) {
+	elsif ($file =~ /\.mp3$/i) {
 		push @cmd, "id3tag";
 		foreach (sort { $a cmp $b } keys %info) {
 			# don't need extra track num field
 			/TRACKNUMBER/ && next;
-			$plus_tags{$_} ||= "";
-			push @result, "$plus_tags{$_}$_=$info{$_}";
+			$plus_tags{$_} ||= "===";
+			push @result, "$plus_tags{$_} $_=$info{$_}";
 		}
 		if ($genre) { push @cmd, "--genre=" . $id3_genres_UC{uc $genre} }
 		if ($artist) { push @cmd, "--artist=" . $artist }
@@ -307,7 +308,7 @@ sub set_tag {
 		push @cmd, $file;
 	}
 
-	print "\n", $_pretend, "Tagging \`$file'\n", join("|", @result), "\n";
+	print "\n", $_pretend, "*** tagging \`$file'\n", join("\n", @result), "\n";
 	unless ($pretend) { quiet_system(@cmd) }
 }
 
@@ -315,7 +316,7 @@ sub get_vorbis_info {
 	my ($file) = @_;
 	my %info;
 
-	# FIXME - gracefully handle missing `vorbiscomment'
+	# fixed! done elsewhere - FIXME - gracefully handle missing `vorbiscomment'
 	foreach (split /\n/, `vorbiscomment "$file"`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
@@ -329,7 +330,7 @@ sub get_mp3_info {
 	my ($file) = @_;
 	my %info;
 
-	# FIXME - gracefully handle missing `id3info'
+	# fixed! done elsewhere - FIXME - gracefully handle missing `id3info'
 	foreach (split /\n/, `id3info "$file"`) {
 		if (/=== ([A-Z0-9]{3,4}) \(.*?\): (.*)/) {
 			if ($id3_names{$1}) { $info{ $id3_names{$1} } = $2 }
@@ -346,6 +347,7 @@ sub quiet_system {
 	my (@cmd) = @_;
 	my $oldout;
 	my $olderr;
+	my $retval;
 
 	# save stdout and stderr
 	open $oldout, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
@@ -358,9 +360,8 @@ sub quiet_system {
 	select STDERR; $| = 1;
 
 	# MUST BE FIXED BEFORE 1.0!!!
-	# FIXME - we should be checking the exit status, and we should be
-	# capturing stdout/err for the user in case of a problem
-	system(@cmd);
+	# FIXME - we should capture stdout/err for the user in case of a problem
+	$retval = system(@cmd);
 
 	close STDOUT;
 	close STDERR;
@@ -368,6 +369,8 @@ sub quiet_system {
 	# restore stdout and stderr
 	open STDOUT, ">&", $oldout or die "Can't restore STDOUT!: $!\n";
 	open STDERR, ">&", $olderr or die "Can't restore STDERR!: $!\n";
+
+	return $retval;
 }
 
 sub descend_into {
@@ -375,7 +378,10 @@ sub descend_into {
 	my @files;
 
 	while (local $_ = shift @dirs) {
-		if (opendir DIR, $_) {
+		# FIXME - must check for recursive symlinks before
+		# implementing symlink traversal
+		if (-l $_) { print "FIXME - I don't handle symlinks yet.  sorry...\n" }
+		elsif (opendir DIR, $_) {
 			foreach my $dirent (grep !/^\./, readdir DIR) {
 				# FIXME? - we're assuming catfile will work for files and
 				# dirs, but on some (non-Unix) platforms this may not be
@@ -383,7 +389,7 @@ sub descend_into {
 				# platforms anyway?  probably not.
 				$dirent = File::Spec->catfile($_, $dirent);
 				if (-d $dirent) { push @dirs, $dirent }
-				elsif ($dirent =~ /(\.ogg|\.mp3)$/) { push @files, $dirent }
+				elsif ($dirent =~ /(\.ogg|\.mp3)$/i) { push @files, $dirent }
 			}
 		}
 		else { warn "can't open dir \`$_': $!\n" }
@@ -392,8 +398,40 @@ sub descend_into {
 	return @files;
 }
 
+sub sane {
+	my $retval = 1;
+	my @missing;
+
+	foreach ("vorbiscomment", "id3info", "id3tag") {
+		unless ( which($_) ) {
+			$retval = 0;
+			push @missing, "\`$_'";
+		}
+	}
+
+	@missing > 1 and $missing[-1] = "\b\b and $missing[-1]";
+	$retval or $insane_error = join(", ", @missing) . " not found in path!";
+
+	return $retval;
+}
+
+sub which {
+	my ($prog) = @_;
+	my @paths = split ":", $ENV{"PATH"};
+	my $progpath;
+
+	foreach (@paths) {
+		$progpath = File::Spec->catfile($_, $prog);
+		if (-x $progpath) { return $progpath }
+	}
+
+	return undef;
+}
+
 main: {
 	my @files;
+
+	sane() or die "Failed sanity check: $insane_error\n";
 
 	Getopt::Long::Configure ("bundling");
 	GetOptions(
@@ -423,19 +461,10 @@ main: {
 	elsif ($display_version) {
 		print "$PROGRAM $VERSION\n$COPYRIGHT";
 	}
-	elsif (@ARGV && ( $gt
-	               || $list_info
-	               || $track
-	               || $genre
-	               || $artist
-	               || $album
-	               || $title
-	               || $title_pattern
-	               || $artist_pattern
-	               || $album_pattern
-	               || $genre_pattern
-	               || $track_pattern )
-	) {
+	elsif (@ARGV && ( $gt || $list_info || $track || $genre || $artist
+		|| $album || $title || $title_pattern || $artist_pattern
+		|| $album_pattern || $genre_pattern || $track_pattern ) )
+	{
 		if (!$force_title && $title && (@ARGV > 1)) {
 			print <<WTF;
 
@@ -486,15 +515,17 @@ WTF
 						my %info;
 						my @info;
 
-						if ($_ =~ /\.ogg$/) {
-							%info = get_vorbis_info($_);
+						if ($_ =~ /\.(ogg|mp3)$/i) {
+							if ($_ =~ /\.ogg$/i) {
+								%info = get_vorbis_info($_);
+							}
+							elsif ($_ =~ /\.mp3$/i) {
+								%info = get_mp3_info($_);
+							}
+							foreach (sort { $a cmp $b } keys %info)
+							{ push @info, "=== $_: $info{$_}" }
+							print "\n*** \`$_'\n", join("\n", @info), "\n";
 						}
-						else {
-							%info = get_mp3_info($_);
-						}
-						foreach (sort { $a cmp $b } keys %info)
-						{ push @info, "$_=$info{$_}" }
-						print "\`$_'\n", join("|", @info), "\n\n";
 					}
 					else { set_tag($_) }
 				}

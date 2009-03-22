@@ -1,3 +1,16 @@
+2003.11.07  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: better sanity check, ignore case of ogg/mp3 extension, ignore
+	  non-ogg/mp3 files given on command-line, upper-cased program name,
+	  drastically changed format of output - it's more readable, imo
+	* RELEASE 0.7
+
+
+2003.11.05  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: check for symlinks in descend_into(), code cleanup, added a
+	  sanity check(test for vorbiscomment, id3info, and id3tag in path),
+	  quiet_system() now returns exit status
+
+
 2003.11.03  Ryan McGuigan <ryan@tempestgames.com>
 	* README: updated
 	* RELEASE 0.6
