@@ -1,0 +1,38 @@
+To use audiotag, you must have:
+
+1. vorbiscomment (from vorbis-tools) in your path
+2. id3tag & id3info (from id3lib) in your path
+3. Perl >= 5.6
+
+INSTALL
+
+Just copy `audiotag' to /usr/local/bin (or somewhere in your path)
+
+USAGE
+
+% audiotag [OPTION]... [FILE]...
+
+Examples:
+
+Set GENRE to "Metal"
+% audiotag -g Metal *.mp3 *.ogg
+
+Guess and set TRACKNUM - guess track uses the simple pattern '(\d\d)\.'
+% audiotag -G *.mp3 *.ogg
+
+Set TITLE based on a pattern match of the filename - This example would work
+for files with a name in the form "Mudvayne - 01. Shadow of a Man.ogg"
+% audiotag --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
+
+Same as above, but don't really do anything, just see what it WOULD do
+% audiotag --pretend --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
+
+BUGS
+
+None!
+
+No, I'm kidding.  audiotag requires more testing, and it currently doesn't
+handle failed pattern matches in any way at all.  Avoid that with the -p option
+before running it for real.
+
+
