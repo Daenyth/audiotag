@@ -1,55 +1,59 @@
-2007.03.13  Ryan McGuigan <ryan@tempestgames.com>
+2007.09.26  Ryan McGuigan <ryan at tempestgames dot com>
+	* patch from Jan Seeger <jan dot seeger at thenybble dot de>
+	  - re-enables directory creation / file moving
+
+2007.03.13  Ryan McGuigan <ryan at tempestgames dot com>
 	* patches from Matt Mead <matthewcmead at goof dot com>
 	  - add support for mp4 using AtomicParsley
 	  - bug fixes
 
 
-2006.05.18  Ryan McGuigan <ryan@tempestgames.com>
+2006.05.18  Ryan McGuigan <ryan at tempestgames dot com>
 	* applied patches from Karsten Looschen <karsten.looschen at uni-oldenburg dot de>
 	  - ogg info fix
 	  - file renaming with directory creation / file moving addition
 
 
-2005.01.25  Ryan McGuigan <ryan@tempestgames.com>
+2005.01.25  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: added underscore/space conversion options.
 	* RELEASE 0.14
 
 
-2004.12.11  Ryan McGuigan <ryan@tempestgames.com>
+2004.12.11  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: fixed minor typo in genre list
 
 
-2004.12.11  Ryan McGuigan <ryan@tempestgames.com>
+2004.12.11  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: changed file naming directives to match command-line short
 	options.
 
 
-2004.08.02  Ryan McGuigan <ryan@tempestgames.com>
+2004.08.02  Ryan McGuigan <ryan at tempestgames dot com>
 	* RELEASE 0.13
 
 
-2004.08.01  Ryan McGuigan <ryan@tempestgames.com>
+2004.08.01  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: added initial support for renaming files based on meta-data,
 	  minor code cleanup
 	* README: added example for file renaming
 
 
-2004.06.13  Ryan McGuigan <ryan@tempestgames.com>
+2004.06.13  Ryan McGuigan <ryan at tempestgames dot com>
 	* RELEASE 0.12
 
 
-2004.06.12  Ryan McGuigan <ryan@tempestgames.com>
+2004.06.12  Ryan McGuigan <ryan at tempestgames dot com>
 	* README: bug list updated
 	* audiotag: major code cleanup, symlinks are now followed correctly
 
 
-2004.04.05  Ryan McGuigan <ryan@tempestgames.com>
+2004.04.05  Ryan McGuigan <ryan at tempestgames dot com>
 	* README: updated
 	* audiotag: minor code cleanup
 	* RELEASE 0.11
 
 
-2004.04.02  Ryan McGuigan <ryan@tempestgames.com>
+2004.04.02  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: fix improper filename quoting for external programs
 	* audiotag: make all filetypes optional, but at least 1 required
 	* audiotag: minor code cleanup, typo fixes
@@ -57,15 +61,15 @@
 	  if it was you, you're out there somewhere, let me know :D
 
 
-2004.03.30  Ryan McGuigan <ryan@tempestgames.com>
+2004.03.30  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: minor code cleanup
 
 
-2004.03.27  Ryan McGuigan <ryan@tempestgames.com>
+2004.03.27  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: minor code cleanup, make oggvorbis support optional
 
 
-2003.11.12  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.12  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: replaced quiet_system() with fork_exec() - fork()s, then
 	  exec()s, capturing the output from std(out|err)
 	  show the user what went wrong, give them a chance to quit
@@ -74,17 +78,17 @@
 	* RELEASE 0.10
 
 
-2003.11.11  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.11  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: very minor code cleanup
 
 
-2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.09  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: convert genre args to proper case
 	* audiotag: change = => : in output
 	* RELEASE 0.9
 
 
-2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.09  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: minor code cleanup
 	* audiotag: initial flac support added
 	* README: added homepages to requirements list
@@ -92,7 +96,7 @@
 	* RELEASE 0.8
 
 
-2003.11.08  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.08  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: added stupid comment complaining about .ogg encapsulated files
 	  :) - don't know wtf to do about that
 	* audiotag: ummm... added album options to usage() - wtf, I thought I
@@ -100,34 +104,34 @@
 	* audiotag: added get_flac_info(), more FIXMEs
 
 
-2003.11.07  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.07  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: better sanity check, ignore case of ogg/mp3 extension, ignore
 	  non-ogg/mp3 files given on command-line, upper-cased program name,
 	  drastically changed format of output - it's more readable, imo
 	* RELEASE 0.7
 
 
-2003.11.05  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.05  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: check for symlinks in descend_into(), code cleanup, added a
 	  sanity check(test for vorbiscomment, id3info, and id3tag in path),
 	  quiet_system() now returns exit status
 
 
-2003.11.03  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.03  Ryan McGuigan <ryan at tempestgames dot com>
 	* README: updated
 	* RELEASE 0.6
 
 
-2003.11.02  Ryan McGuigan <ryan@tempestgames.com>
+2003.11.02  Ryan McGuigan <ryan at tempestgames dot com>
 	* major bug fixes
 	* added directory traversal (--recursive/-r)
 	* added --track/-T option
 
 
-2003.10.29  Ryan McGuigan <ryan@tempestgames.com>
+2003.10.29  Ryan McGuigan <ryan at tempestgames dot com>
 	* RELEASE 0.5
 
 
-2003.10.??  Ryan McGuigan <ryan@tempestgames.com>
+2003.10.??  Ryan McGuigan <ryan at tempestgames dot com>
 	* audiotag: started project
 

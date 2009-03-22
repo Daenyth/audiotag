@@ -9,7 +9,7 @@ use File::Basename;
 use File::Path;
 use Getopt::Long;
 
-my $VERSION = '0.16';
+my $VERSION = '0.17';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
@@ -305,6 +305,8 @@ USAGE
 sub rename_file {
 	my ($file, $info) = @_;
 	my $_pretend = $pretend ? "I would be " : "";
+    #This needs an addition to correctly remove Slashes in pathnames in
+    #artist/title names, but leave user supplied slashes correct.
 	my %directives = (
 		T => sprintf("%02d", $info->{TRACKNUM}),
 		a => $info->{ARTIST},
@@ -312,6 +314,10 @@ sub rename_file {
 		A => $info->{ALBUM},
 		o => basename($file)
 	);
+	#Should work correctly.
+	foreach (keys %directives) {
+	    $directives{$_} =~ s|/| |g;
+	}
 	$directives{'o'} =~ s/\.[^.]*$//;
 	
 	$rename_pattern ||= "%T. %a - %t";
@@ -324,7 +330,7 @@ sub rename_file {
 	(my $type = $file) =~ s/.*\././;
 	(my $new_name = $rename_pattern) =~ s/%([TatAo])/$directives{$1}/ge;
 	# MCM - convert slashes in full path to dashes
-	$new_name =~ s/\//-/g;
+    #$new_name =~ s/\//-/g;
 
 	#convert ".../newdir/" to ".../newdir/oldfilename
 	$new_name =~ s|/$|/$directives{o}|;
