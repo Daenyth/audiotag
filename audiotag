@@ -8,7 +8,7 @@ use File::Find;
 use File::Basename;
 use Getopt::Long;
 
-my $VERSION = '0.13';
+my $VERSION = '0.14';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
@@ -50,6 +50,8 @@ my $recursive_noted = 0;
 my $list_genres     = 0;
 my $rename_files    = 0;
 my $rename_pattern  = '';
+my $convert_underscores = 0;
+my $convert_spaces  = 0;
 
 my %Options = (
 	'rename-files'     => \$rename_files,
@@ -61,6 +63,8 @@ my %Options = (
 	'genre-pattern=s'  => \$genre_pattern,
 	'artist|a=s'       => \$artist,
 	'artist-pattern=s' => \$artist_pattern,
+	'convert-underscores|U' => \$convert_underscores,
+	'convert-spaces|S' => \$convert_spaces,
 	'album|A=s'        => \$album,
 	'album-pattern=s'  => \$album_pattern,
 	'title|t=s'        => \$title,
@@ -233,7 +237,7 @@ my %id3_genres = (
 	"Black Metal"             => 138,
 	"Crossover"               => 139,
 	"Contemporary Christian"  => 140,
-	"Christian Rock "         => 141,
+	"Christian Rock"          => 141,
 	"Merengue"                => 142,
 	"Salsa"                   => 143,
 	"Trash Metal"             => 144,
@@ -265,6 +269,7 @@ Option:
   -A, --album=ALBUM             set the album to ALBUM
       --album-pattern=PATTERN   extract the aalbum name from the filename using
                                   perl compatible regex PATTERN
+  -U, --convert-underscores     convert underscores to spaces
   -t, --title=TITLE             set the title to TITLE
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
@@ -273,12 +278,14 @@ Option:
       --rename-files            rename files based on meta-data
       --rename-pattern          pattern to use when renaming files.  when no
                                   rename pattern is specified, the rename
-                                  pattern defaults to: "%t. %a - %s"
+                                  pattern defaults to: "%T. %a - %t"
                                   string replacement directives:
-                                    %t: track number
+                                    %T: track number
                                     %a: artist name
-                                    %s: song title
+                                    %t: song title
                                     %A: album name
+  -S, --convert-spaces          convert spaces to underscores when renaming
+                                  files
   -l, --list-info               list track info
   -r, --recursive               descend into directories recursively
   -p, --pretend                 show what WOULD have been done had --pretend
@@ -294,20 +301,25 @@ sub rename_file {
 	my ($file, $info) = @_;
 	my $_pretend = $pretend ? "I would be " : "";
 	my %directives = (
-		t => sprintf("%02d", $info->{TRACKNUM}),
+		T => sprintf("%02d", $info->{TRACKNUM}),
 		a => $info->{ARTIST},
-		s => $info->{TITLE},
+		t => $info->{TITLE},
 		A => $info->{ALBUM},
 	);
 
-	$rename_pattern ||= "%t. %a - %s";
+	$rename_pattern ||= "%T. %a - %t";
+
+	if ($convert_spaces) {
+		$directives{$_} =~ tr/ /_/ for keys %directives;
+		$rename_pattern =~ tr/ /_/;
+	}
 
 	(my $type = $file) =~ s/.*\././;
-	(my $new_name = $rename_pattern) =~ s/%([tasA])/$directives{$1}/ge;
+	(my $new_name = $rename_pattern) =~ s/%([TatA])/$directives{$1}/ge;
 
 	my $new_path = File::Spec->catfile(dirname($file), $new_name.$type);
 
-	print "\n", $_pretend, "renaming \`$file' ===> $new_path\n";
+	print "\n", $_pretend, "renaming \`$file' ===> \`$new_path'\n";
 	unless ($pretend) {
 		rename($file, $new_path)
 			or die "Couldn't rename \`$file' to \`$new_path': $!\n";
@@ -329,13 +341,23 @@ sub set_tag {
 	if ($album_pattern ) { $album  = "" }
 	if ($genre_pattern ) { $genre  = "" }
 
-	if ($track_pattern  && $file =~ /$track_pattern/ ) { $track  = $1 }
-	if ($title_pattern  && $file =~ /$title_pattern/ ) { $title  = $1 }
-	if ($artist_pattern && $file =~ /$artist_pattern/) { $artist = $1 }
-	if ($album_pattern  && $file =~ /$album_pattern/ ) { $album  = $1 }
-	if ($genre_pattern  && $file =~ /$genre_pattern/ ) { $genre  = $1 }
-	
-	# %info = get_info($file);
+	if ($track_pattern && $file =~ /$track_pattern/ ) { $track  = $1 }
+	if ($title_pattern && $file =~ /$title_pattern/ ) {
+		$title  = $1;
+		$title =~ tr/_/ / if $convert_underscores
+	}
+	if ($artist_pattern&& $file =~ /$artist_pattern/) {
+		$artist = $1;
+		$artist =~ tr/_/ / if $convert_underscores
+	}
+	if ($album_pattern && $file =~ /$album_pattern/ ) {
+		$album  = $1;
+		$album =~ tr/_/ / if $convert_underscores
+	}
+	if ($genre_pattern && $file =~ /$genre_pattern/ ) {
+		$genre  = $1;
+		$genre =~ tr/_/ / if $convert_underscores
+	}
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) {
@@ -389,12 +411,12 @@ WTF
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info->{$_}";
 		}
-		if ($genre   ) { push @cmd, "--genre="   . $id3_genres_UC{uc $genre} }
-		if ($artist  ) { push @cmd, "--artist="  . $artist   }
-		if ($album   ) { push @cmd, "--album="   . $album    }
-		if ($title   ) { push @cmd, "--song="    . $title    }
-		if ($track   ) { push @cmd, "--track="   . $track    }
-		if ($year    ) { push @cmd, "--year="    . $year     }
+		if ($genre   ) { push @cmd, "--genre="  . $id3_genres_UC{uc $genre} }
+		if ($artist  ) { push @cmd, "--artist=" . $artist   }
+		if ($album   ) { push @cmd, "--album="  . $album    }
+		if ($title   ) { push @cmd, "--song="   . $title    }
+		if ($track   ) { push @cmd, "--track="  . $track    }
+		if ($year    ) { push @cmd, "--year="   . $year     }
 # 15 Nov '03 RAU add comments support
 		if ($comments) { push @cmd, "--comment=" . $comments }
 # end RAU
@@ -407,7 +429,7 @@ WTF
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info->{$_}";
 			push @cmd, "--remove-vc-field", $_;
-			push @cmd, "--set-vc-field", "$_=" . quotemeta $info->{$_};
+			push @cmd, "--set-vc-field", "$_=$info->{$_}";
 		}
 		push @cmd, $file;
 	}
@@ -534,7 +556,7 @@ sub fork_exec {
 	return $retval;
 }
 
-sub _check_for_prog {
+sub check_for_prog {
 	my ($types, $missing, $type) = (shift, shift, shift);
 	my @needed;
 	my %needed = ( type => $type, needed => \@needed );
@@ -550,9 +572,9 @@ sub sane {
 	my @filetypes;
 	my @missing;
 
-	_check_for_prog(\@filetypes, \@missing, "mp3" , "id3info", "id3tag");
-	_check_for_prog(\@filetypes, \@missing, "ogg" , "vorbiscomment"    );
-	_check_for_prog(\@filetypes, \@missing, "flac", "metaflac"         );
+	check_for_prog(\@filetypes, \@missing, "mp3" , "id3info", "id3tag");
+	check_for_prog(\@filetypes, \@missing, "ogg" , "vorbiscomment"    );
+	check_for_prog(\@filetypes, \@missing, "flac", "metaflac"         );
 
 	for (@missing) {
 		warn "WARNING: " . join(", ", @{$_->{needed}}) .
@@ -591,7 +613,7 @@ sub _find {
 				print "$0: No such file or directory: $_\n";
 				return;
 			}
-			if ($File::Find::name =~ /$filetypes$/) {
+			if (-f $File::Find::name and $File::Find::name =~ /$filetypes$/) {
 				push @files, $File::Find::name;
 			}
 			else {

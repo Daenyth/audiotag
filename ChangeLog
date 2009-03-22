@@ -1,3 +1,17 @@
+2005.01.25  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: added underscore/space conversion options.
+	* RELEASE 0.14
+
+
+2004.12.11  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: fixed minor typo in genre list
+
+
+2004.12.11  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: changed file naming directives to match command-line short
+	options.
+
+
 2004.08.02  Ryan McGuigan <ryan@tempestgames.com>
 	* RELEASE 0.13
 
