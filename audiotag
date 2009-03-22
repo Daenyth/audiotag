@@ -5,7 +5,7 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = 0.9;
+our $VERSION = '0.10';
 our $PROGRAM = "Audiotag";
 
 our $COPYRIGHT = <<COPYRIGHT;
@@ -18,6 +18,7 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 COPYRIGHT
 
+our $cmd_output = "";
 our $filetypes = 'mp3|ogg';
 our $insane_error = "";
 our $help = 0;
@@ -35,6 +36,7 @@ our $album_pattern = '';
 our $title = '';
 our $title_pattern = '';
 our $force_title = 0;
+our $year = '';
 our $list_info = 0;
 our $display_version = 0;
 our $recursive = 0;
@@ -48,13 +50,15 @@ our %id3_names = (
 	TALB => "ALBUM",
 	TPE1 => "ARTIST",
 	TIT2 => "TITLE",
+	TYER => "YEAR",
 
 	# short id?
 	TCO => "GENRE",
 	TRK => "TRACKNUM",
 	TAL => "ALBUM",
 	TP1 => "ARTIST",
-	TT2 => "TITLE"
+	TT2 => "TITLE",
+	TYE => "YEAR"
 );
 
 # I grabbed these from id3lib - I hope they're correct
@@ -239,6 +243,7 @@ Option:
   -t, --title=TITLE             set the title to TITLE
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
+  -y, --year=YEAR               set the year to YEAR
   -l, --list-info               list track info
   -r, --recursive               descend into directories recursively
   -p, --pretend                 show what WOULD have been done had --pretend
@@ -301,6 +306,7 @@ WTF
 	if ($title) { $plus_tags{"TITLE"} = "+++";  $info{"TITLE"} = $title }
 	if ($track) { $plus_tags{"TRACKNUM"} = $plus_tags{"TRACKNUMBER"} = "+++";
 		$info{"TRACKNUM"} = $info{"TRACKNUMBER"} = $track }
+	if ($year) { $plus_tags{"YEAR"} = "+++";  $info{"YEAR"} = $year }
 
 	if ($file =~ /\.ogg$/i) {
 		push @cmd, "vorbiscomment";
@@ -326,6 +332,7 @@ WTF
 		if ($album) { push @cmd, "--album=" . $album }
 		if ($title) { push @cmd, "--song=" .  $title }
 		if ($track) { push @cmd, "--track=" . $track }
+		if ($year) { push @cmd, "--year=" . $year }
 		push @cmd, $file;
 	}
 	elsif ($file =~ /\.flac$/i) {
@@ -335,6 +342,8 @@ WTF
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info{$_}";
 		}
+
+		# FIXME - these shouldn't all need to be spelled out like this...
 		if ($genre) {
 			push @cmd, "--remove-vc-field", "GENRE";
 			push @cmd, "--set-vc-field", "GENRE=$info{GENRE}";
@@ -351,6 +360,10 @@ WTF
 			push @cmd, "--remove-vc-field", "TITLE";
 			push @cmd, "--set-vc-field", "TITLE=$info{TITLE}";
 		}
+		if ($year) {
+			push @cmd, "--remove-vc-field", "YEAR";
+			push @cmd, "--set-vc-field", "YEAR=$info{YEAR}";
+		}
 		if ($track) {
 			push @cmd, "--remove-vc-field", "TRACKNUM";
 			push @cmd, "--set-vc-field", "TRACKNUM=$info{TRACKNUM}";
@@ -361,7 +374,49 @@ WTF
 	}
 
 	print "\n", $_pretend, "*** tagging \`$file'\n", join("\n", @result), "\n";
-	unless ($pretend) { quiet_system(@cmd) }
+	unless ($pretend) {
+		if (   (fork_exec(@cmd))
+			or ($cmd[0] eq "id3tag" and $cmd_output =~ /tagged no tag/))
+		{
+			# command failed
+			local $SIG{ALRM} = sub { print "... continuing...\n" };
+			local $| = 1;
+			my $countdown = 9;
+
+			chomp $cmd_output;
+			warn sprintf <<'WTF', join(" ", @cmd), $cmd_output, $file;
+
+!!! COMMAND FAILED !!!
+-------------------------------------------------------------------------------
+$ %s
+%s
+-------------------------------------------------------------------------------
+for `%s'
+
+WTF
+			alarm 10;
+			print "Hit Enter to continue, or ctrl+c to exit (will continue in " .
+			      "10 seconds)";
+			print "\b\b\b\b\b\b\b\b\b\b\b";
+			while (! continue_or_exit(1) ) {
+				print " " . $countdown-- . "\b\b" unless ($countdown < 0);
+			}
+			alarm 0;
+			# was that creative or what? :)
+		}
+	}
+	#unless ($pretend) { quiet_system(@cmd) }
+}
+
+sub continue_or_exit {
+	my ($timeout) = @_;
+	my $rin = '';
+	my $nfound;
+
+	vec($rin,fileno(STDIN),1) = 1;
+	$nfound = select $rin, undef, undef, $timeout;
+
+	return $nfound;
 }
 
 # FIXME???  Ok, this is fucking stupid.  Xiph should be ashamed :) Here's the
@@ -415,35 +470,57 @@ sub get_mp3_info {
 	return %info;
 }
 
-sub quiet_system {
+sub fork_exec {
 	my (@cmd) = @_;
-	my $oldout;
-	my $olderr;
-	my $retval;
+	my $pid;
+	my $retval = 0;
 
-	# save stdout and stderr
-	open $oldout, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
-	open $olderr, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
-
-	open STDOUT, ">", File::Spec->devnull() or warn "No null device?: $!\n";
-	open STDERR, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
-
-	select STDOUT; $| = 1;
-	select STDERR; $| = 1;
-
-	# MUST BE FIXED BEFORE 1.0!!!
-	# FIXME - we should capture stdout/err for the user in case of a problem
-	$retval = system(@cmd);
-
-	close STDOUT;
-	close STDERR;
-
-	# restore stdout and stderr
-	open STDOUT, ">&", $oldout or die "Can't restore STDOUT!: $!\n";
-	open STDERR, ">&", $olderr or die "Can't restore STDERR!: $!\n";
+	if ( $pid = open(EXEC_CHILD, "-|") ) {
+		local $/;
+		$cmd_output = <EXEC_CHILD>;
+		close EXEC_CHILD or $retval = 1;
+	}
+	elsif (defined $pid) {
+		open STDERR, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
+		exec(@cmd) or die "couldn't exec: $!\n";
+	}
+	else {
+		# couldn't fork
+		die "Couldn't fork: $!\n";
+	}
 
 	return $retval;
 }
+
+#sub quiet_system {
+#	my (@cmd) = @_;
+#	my $oldout;
+#	my $olderr;
+#	my $retval;
+#
+#	# save stdout and stderr
+#	open $oldout, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
+#	open $olderr, ">&STDERR" or warn "Can't dup STDERR $!\n";
+#
+#	open STDOUT, ">", File::Spec->devnull() or warn "No null device?: $!\n";
+#	open STDERR, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
+#
+#	select STDOUT; $| = 1;
+#	select STDERR; $| = 1;
+#
+#	# MUST BE FIXED BEFORE 1.0!!!
+#	# FIXME - we should capture stdout/err for the user in case of a problem
+#	$retval = system(@cmd);
+#
+#	close STDOUT;
+#	close STDERR;
+#
+#	# restore stdout and stderr
+#	open STDOUT, ">&", $oldout or die "Can't restore STDOUT!: $!\n";
+#	open STDERR, ">&", $olderr or die "Can't restore STDERR!: $!\n";
+#
+#	return $retval;
+#}
 
 sub descend_into {
 	my (@dirs) = @_;
@@ -521,6 +598,7 @@ main: {
 		'album-pattern=s' => \$album_pattern,
 		'title|t=s' => \$title,
 		'title-pattern=s' => \$title_pattern,
+		'year|y=s' => \$year,
 		'pretend|p' => \$pretend,
 		'force-title' => \$force_title,
 		'force-track' => \$force_track,
@@ -531,18 +609,14 @@ main: {
 		'help|h' => \$help,
 	) or exit Usage();
 
-	if ($help) {
-		Usage();
-	}
-	elsif ($display_version) {
-		print "$PROGRAM $VERSION\n$COPYRIGHT";
-	}
+	if ($help) { Usage() }
+	elsif ($display_version) { print "$PROGRAM $VERSION\n$COPYRIGHT" }
 	elsif ($list_genres) {
 		print "Valid genres in alphabetical order:\nID3 #  GENRE\n";
 		foreach (sort keys %id3_genres) { printf "%5d  %s\n", $id3_genres{$_}, $_ }
 	}
 	elsif (@ARGV && ( $gt || $list_info || $track || $genre || $artist
-		|| $album || $title || $title_pattern || $artist_pattern
+		|| $album || $title || $title_pattern || $artist_pattern || $year
 		|| $album_pattern || $genre_pattern || $track_pattern ) )
 	{
 		if (!$force_title && $title && (@ARGV > 1)) {
@@ -612,8 +686,6 @@ WTF
 			else { print "I don't see any file or directory by the name \`$_'\n" }
 		}
 	}
-	else {
-		exit Usage();
-	}
+	else { exit Usage() }
 }
 

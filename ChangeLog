@@ -1,3 +1,16 @@
+2003.11.12  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: replaced quiet_system() with fork_exec() - fork()s, then
+	  exec()s, capturing the output from std(out|err)
+	  show the user what went wrong, give them a chance to quit
+	* added --year option
+	* README: updated README
+	* RELEASE 0.10
+
+
+2003.11.11  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: very minor code cleanup
+
+
 2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
 	* audiotag: convert genre args to proper case
 	* audiotag: change = => : in output
