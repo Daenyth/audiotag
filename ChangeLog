@@ -1,6 +1,12 @@
+2008.06.05  Ryan McGuigan <ryan at tempestgames dot com>
+	* patch from Simon Wibberly "simon dot wibberly at metawork dot uk"
+	  - addes support for matching the year from the file name
+
+
 2007.09.26  Ryan McGuigan <ryan at tempestgames dot com>
 	* patch from Jan Seeger <jan dot seeger at thenybble dot de>
 	  - re-enables directory creation / file moving
+
 
 2007.03.13  Ryan McGuigan <ryan at tempestgames dot com>
 	* patches from Matt Mead <matthewcmead at goof dot com>

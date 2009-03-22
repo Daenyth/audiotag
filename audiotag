@@ -35,10 +35,11 @@ my $album           = '';
 my $album_pattern   = '';
 my $title           = '';
 my $title_pattern   = '';
+my $year            = '';
+my $year_pattern    = '';
 # 15 Nov '03 RAU Add support for comments
 my $comments        = '';
 # end RAU
-my $year            = '';
 my $gt              = 0;
 my $help            = 0;
 my $pretend         = 0;
@@ -71,6 +72,7 @@ my %Options = (
 	'title|t=s'        => \$title,
 	'title-pattern=s'  => \$title_pattern,
 	'year|y=s'         => \$year,
+	'year-pattern=s'   => \$year_pattern,
 	'comments|c=s'     => \$comments,
 	'pretend|p'        => \$pretend,
 	'force-title'      => \$force_title,
@@ -275,6 +277,8 @@ Option:
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
   -y, --year=YEAR               set the year to YEAR
+      --year-pattern=PATTERN    extract the year from the filename using perl
+                                  compatible regex PATTERN
   -c, --comments=COMMENTS       set the comments to COMMENTS
       --rename-files            rename files based on meta-data
       --rename-pattern          pattern to use when renaming files.  when no
@@ -364,6 +368,7 @@ sub set_tag {
 	if ($artist_pattern) { $artist = "" }
 	if ($album_pattern ) { $album  = "" }
 	if ($genre_pattern ) { $genre  = "" }
+	if ($year_pattern )  { $year   = "" }
 
 	if ($track_pattern && $file =~ /$track_pattern/ ) { $track  = $1 }
 	if ($title_pattern && $file =~ /$title_pattern/ ) {
@@ -381,6 +386,10 @@ sub set_tag {
 	if ($genre_pattern && $file =~ /$genre_pattern/ ) {
 		$genre  = $1;
 		$genre =~ tr/_/ / if $convert_underscores
+	}
+	if ($year_pattern && $file =~ /$year_pattern/ ) {
+		$year = $1;
+		$year =~ tr/_/ / if $convert_underscores
 	}
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
@@ -751,7 +760,7 @@ main: {
 	GetOptions( %Options ) or exit Usage();
 
 	my $alter_info = ( $gt || $list_info || $track || $genre || $artist ||
-		$album || $title || $title_pattern || $artist_pattern || $year ||
+		$album || $title || $title_pattern || $artist_pattern || $year || $year_pattern ||
 		$album_pattern || $genre_pattern || $track_pattern || $comments    );
 
 	   if ($help           ) { Usage() }
