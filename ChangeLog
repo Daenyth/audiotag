@@ -1,3 +1,19 @@
+2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: minor code cleanup
+	* audiotag: initial flac support added
+	* README: added homepages to requirements list
+	* audiotag: check for valid genre names, added list-genres option
+	* RELEASE 0.8
+
+
+2003.11.08  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: added stupid comment complaining about .ogg encapsulated files
+	  :) - don't know wtf to do about that
+	* audiotag: ummm... added album options to usage() - wtf, I thought I
+	  already did that... - I'm losing it ;)
+	* audiotag: added get_flac_info(), more FIXMEs
+
+
 2003.11.07  Ryan McGuigan <ryan@tempestgames.com>
 	* audiotag: better sanity check, ignore case of ogg/mp3 extension, ignore
 	  non-ogg/mp3 files given on command-line, upper-cased program name,

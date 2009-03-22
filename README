@@ -1,8 +1,9 @@
 To use Audiotag, you must have:
 
-1. vorbiscomment (from vorbis-tools) in your path
-2. id3tag & id3info (from id3lib) in your path
+1. vorbiscomment (from vorbis-tools - xiph.org/ogg/vorbis) in your path
+2. id3tag & id3info (from id3lib - id3lib.sourceforge.net) in your path
 3. Perl >= 5.6
+4. (optionally) metaflac (from flac - flac.sourceforge.net) in your path
 
 INSTALL
 
@@ -32,7 +33,7 @@ BUGS
 None!
 
 No, I'm kidding.  Audiotag requires more testing.  Currently it doesn't handle
-symlinks, and may infinite loop when encountering recursive symlinks.
+symlinks.
 
 Use the -p option before running it for real.
 

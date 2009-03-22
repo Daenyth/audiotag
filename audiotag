@@ -5,7 +5,7 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = 0.7;
+our $VERSION = 0.8;
 our $PROGRAM = "Audiotag";
 
 our $COPYRIGHT = <<COPYRIGHT;
@@ -18,6 +18,7 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 COPYRIGHT
 
+our $filetypes = 'mp3|ogg';
 our $insane_error = "";
 our $help = 0;
 our $pretend = 0;
@@ -38,6 +39,7 @@ our $list_info = 0;
 our $display_version = 0;
 our $recursive = 0;
 our $recursive_noted = 0;
+our $list_genres = 0;
 
 our %id3_names = (
 	# long id?
@@ -217,7 +219,7 @@ foreach (keys %id3_genres) { $id3_genre_ids{$id3_genres{$_}} = $_ }
 sub Usage {
 	print <<USAGE;
 Usage: $0 [OPTION]... [FILE]...
-Set id3 and/or vorbis tags in mp3 and/or ogg files.
+Set id3 and/or vorbis tags in mp3, ogg, and flac files.
 
 Option:
   -G, --guesstrack              guess the track number (guess uses a simple
@@ -231,6 +233,9 @@ Option:
   -a, --artist=ARTIST           set the artist to ARTIST
       --artist-pattern=PATTERN  extract the artist name from the filename using
                                   perl compatible regex PATTERN
+  -A, --album=ALBUM             set the album to ALBUM
+      --album-pattern=PATTERN   extract the aalbum name from the filename using
+                                  perl compatible regex PATTERN
   -t, --title=TITLE             set the title to TITLE
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
@@ -238,6 +243,7 @@ Option:
   -r, --recursive               descend into directories recursively
   -p, --pretend                 show what WOULD have been done had --pretend
                                   not been used
+      --list-genres             list valid genres in alphabetical order
   -h, --help                    display this help and exit
   -V, --version                 output version information and exit
 USAGE
@@ -268,13 +274,27 @@ sub set_tag {
 	
 	if ($file =~ /\.ogg$/i) { %info = get_vorbis_info($file) }
 	elsif ($file =~ /\.mp3$/i) { %info = get_mp3_info($file) }
+	elsif ($file =~ /\.flac$/i) { %info = get_flac_info($file) }
 	else {
-		print STDERR "$file: the filename must end in .ogg or .mp3\n";
+		# we should never get to here!
+		print STDERR "$file: the filename must end in .($filetypes)\n";
 		return;
 	}
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
-	if ($genre) { $plus_tags{"GENRE"} = "+++"; $info{"GENRE"} = $genre }
+	if ($genre) {
+		if ($id3_genres_UC{ uc $genre }) {
+			$plus_tags{"GENRE"} = "+++"; $info{"GENRE"} = $genre
+		}
+		else {
+			print <<"WTF";
+
+INVALID GENRE: $genre
+For a list of valid genre names, see --list-genres
+WTF
+
+		}
+	}
 	if ($artist) { $plus_tags{"ARTIST"} = "+++";  $info{"ARTIST"} = $artist }
 	if ($album) { $plus_tags{"ALBUM"} = "+++";  $info{"ALBUM"} = $album }
 	if ($title) { $plus_tags{"TITLE"} = "+++";  $info{"TITLE"} = $title }
@@ -288,7 +308,7 @@ sub set_tag {
 		foreach (sort { $a cmp $b } keys %info) {
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_=$info{$_}";
-			push @cmd, "-t", "$_=$info{$_}"
+			push @cmd, "-t", "$_=$info{$_}";
 		}
 		push @cmd, $file;
 	}
@@ -307,17 +327,68 @@ sub set_tag {
 		if ($track) { push @cmd, "--track=" . $track }
 		push @cmd, $file;
 	}
+	elsif ($file =~ /\.flac$/i) {
+		push @cmd, "metaflac";
+
+		foreach (sort { $a cmp $b } keys %info) {
+			$plus_tags{$_} ||= "===";
+			push @result, "$plus_tags{$_} $_=$info{$_}";
+		}
+		if ($genre) {
+			push @cmd, "--remove-vc-field", "GENRE";
+			push @cmd, "--set-vc-field", "GENRE=$info{GENRE}";
+		}
+		if ($artist) {
+			push @cmd, "--remove-vc-field", "ARTIST";
+			push @cmd, "--set-vc-field", "ARTIST=$info{ARTIST}";
+		}
+		if ($album) {
+			push @cmd, "--remove-vc-field", "ALBUM";
+			push @cmd, "--set-vc-field", "ALBUM=$info{ALBUM}";
+		}
+		if ($title) {
+			push @cmd, "--remove-vc-field", "TITLE";
+			push @cmd, "--set-vc-field", "TITLE=$info{TITLE}";
+		}
+		if ($track) {
+			push @cmd, "--remove-vc-field", "TRACKNUM";
+			push @cmd, "--set-vc-field", "TRACKNUM=$info{TRACKNUM}";
+			push @cmd, "--remove-vc-field", "TRACKNUMBER";
+			push @cmd, "--set-vc-field", "TRACKNUMBER=$info{TRACKNUMBER}";
+		}
+		push @cmd, $file;
+	}
 
 	print "\n", $_pretend, "*** tagging \`$file'\n", join("\n", @result), "\n";
 	unless ($pretend) { quiet_system(@cmd) }
 }
 
+# FIXME???  Ok, this is fucking stupid.  Xiph should be ashamed :) Here's the
+# deal...  Multiple types of data can be encapsulated using the ogg transport
+# layer, however, most programs assume that .ogg means Ogg/Vorbis, even some of
+# Xiph's own software.  Should we do the same, even though that's wrong?  For
+# example, flac can use it's own filetype, or it can be encapsulated in ogg,
+# and when encapsulated in ogg `flac' creates files with... you guessed, a .ogg
+# extension.
 sub get_vorbis_info {
 	my ($file) = @_;
 	my %info;
 
 	# fixed! done elsewhere - FIXME - gracefully handle missing `vorbiscomment'
 	foreach (split /\n/, `vorbiscomment "$file"`) {
+		if (/(.*?)=(.*)/) {
+			$info{ uc $1 } = $2;
+		}
+	}
+
+	return %info;
+}
+
+sub get_flac_info {
+	my ($file) = @_;
+	my %info;
+
+	foreach (split /\n/, `metaflac --export-vc-to=- "$file"`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
 		}
@@ -389,7 +460,7 @@ sub descend_into {
 				# platforms anyway?  probably not.
 				$dirent = File::Spec->catfile($_, $dirent);
 				if (-d $dirent) { push @dirs, $dirent }
-				elsif ($dirent =~ /(\.ogg|\.mp3)$/i) { push @files, $dirent }
+				elsif ($dirent =~ /\.($filetypes)$/i) { push @files, $dirent }
 			}
 		}
 		else { warn "can't open dir \`$_': $!\n" }
@@ -408,6 +479,9 @@ sub sane {
 			push @missing, "\`$_'";
 		}
 	}
+
+	# flac support optional
+	if (which("metaflac")) { $filetypes .= '|flac' }
 
 	@missing > 1 and $missing[-1] = "\b\b and $missing[-1]";
 	$retval or $insane_error = join(", ", @missing) . " not found in path!";
@@ -451,6 +525,7 @@ main: {
 		'force-track' => \$force_track,
 		'recursive|r' => \$recursive,
 		'list-info|l' => \$list_info,
+		'list-genres' => \$list_genres,
 		'version|V' => \$display_version,
 		'help|h' => \$help,
 	) or exit Usage();
@@ -460,6 +535,10 @@ main: {
 	}
 	elsif ($display_version) {
 		print "$PROGRAM $VERSION\n$COPYRIGHT";
+	}
+	elsif ($list_genres) {
+		print "Valid genres in alphabetical order:\nID3 #  GENRE\n";
+		foreach (sort keys %id3_genres) { printf "%5d  %s\n", $id3_genres{$_}, $_ }
 	}
 	elsif (@ARGV && ( $gt || $list_info || $track || $genre || $artist
 		|| $album || $title || $title_pattern || $artist_pattern
@@ -498,36 +577,35 @@ WTF
 				}
 				elsif (-d) {
 					if ($recursive) { push @files, descend_into($_) }
-					else {
-						unless ($recursive_noted) {
-							$recursive_noted = 1;
-							print <<WTF;
+					elsif (!$recursive_noted) {
+						$recursive_noted = 1;
+						print <<WTF;
 
 Pass the --recursive option if you want to descend into directories.
 
 WTF
-							sleep 2;
-						}
+						sleep 1;
 					}
 				}
-				else {
+				elsif ($_ =~ /\.($filetypes)$/i) {
 					if ($list_info) {
 						my %info;
 						my @info;
 
-						if ($_ =~ /\.(ogg|mp3)$/i) {
-							if ($_ =~ /\.ogg$/i) {
-								%info = get_vorbis_info($_);
-							}
-							elsif ($_ =~ /\.mp3$/i) {
-								%info = get_mp3_info($_);
-							}
-							foreach (sort { $a cmp $b } keys %info)
-							{ push @info, "=== $_: $info{$_}" }
-							print "\n*** \`$_'\n", join("\n", @info), "\n";
-						}
+						if ($_ =~ /\.ogg$/i) { %info = get_vorbis_info($_) }
+						elsif ($_ =~ /\.flac$/i) { %info = get_flac_info($_) }
+						elsif ($_ =~ /\.mp3$/i) { %info = get_mp3_info($_) }
+						foreach (sort { $a cmp $b } keys %info)
+						{ push @info, "=== $_: $info{$_}" }
+						print "\n*** \`$_'\n", join("\n", @info), "\n";
 					}
 					else { set_tag($_) }
+				}
+				else {
+					my $filetype;
+
+					($filetype = $_) =~ s/.*(\..*)$/$1/;
+					print "\n*** \`$_'\nno support for $filetype files\n"
 				}
 			}
 			else { print "I don't see any file or directory by the name \`$_'\n" }
