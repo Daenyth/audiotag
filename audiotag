@@ -5,7 +5,7 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = 0.8;
+our $VERSION = 0.9;
 our $PROGRAM = "Audiotag";
 
 our $COPYRIGHT = <<COPYRIGHT;
@@ -284,7 +284,8 @@ sub set_tag {
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) {
 		if ($id3_genres_UC{ uc $genre }) {
-			$plus_tags{"GENRE"} = "+++"; $info{"GENRE"} = $genre
+			$plus_tags{"GENRE"} = "+++";
+			$info{"GENRE"} = $id3_genre_ids{ $id3_genres_UC{ uc $genre } };
 		}
 		else {
 			print <<"WTF";
@@ -307,7 +308,7 @@ WTF
 
 		foreach (sort { $a cmp $b } keys %info) {
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_=$info{$_}";
+			push @result, "$plus_tags{$_} $_: $info{$_}";
 			push @cmd, "-t", "$_=$info{$_}";
 		}
 		push @cmd, $file;
@@ -318,7 +319,7 @@ WTF
 			# don't need extra track num field
 			/TRACKNUMBER/ && next;
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_=$info{$_}";
+			push @result, "$plus_tags{$_} $_: $info{$_}";
 		}
 		if ($genre) { push @cmd, "--genre=" . $id3_genres_UC{uc $genre} }
 		if ($artist) { push @cmd, "--artist=" . $artist }
@@ -332,7 +333,7 @@ WTF
 
 		foreach (sort { $a cmp $b } keys %info) {
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_=$info{$_}";
+			push @result, "$plus_tags{$_} $_: $info{$_}";
 		}
 		if ($genre) {
 			push @cmd, "--remove-vc-field", "GENRE";

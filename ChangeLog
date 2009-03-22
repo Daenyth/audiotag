@@ -1,4 +1,10 @@
 2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: convert genre args to proper case
+	* audiotag: change = => : in output
+	* RELEASE 0.9
+
+
+2003.11.09  Ryan McGuigan <ryan@tempestgames.com>
 	* audiotag: minor code cleanup
 	* audiotag: initial flac support added
 	* README: added homepages to requirements list
