@@ -8,12 +8,12 @@ REQUIREMENTS
 	   - metaflac (from flac, flac.sourceforge.net) in $PATH
 
 INSTALL
-	Just copy `audiotag' to /usr/local/bin (or somewhere in $PATH)
+	Just copy `audiotag' to /usr/local/bin (or somewhere in your $PATH)
 
 USAGE
 	% audiotag [OPTION]... [FILE]...
 
-	tip: Use the -p option before running it for real!
+	tip: Always use the -p option before running it for real!
 
 	Examples:
 
@@ -30,9 +30,18 @@ USAGE
 	Same as above, but don't really do anything, just see what it WOULD do
 	% audiotag --pretend --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
 
+	Rename files based on their meta-data, so the filenames are in the form:
+	"TRACKNUM. Artist (Album Name) Song Title.ogg"
+	eg. "02. Tool (Undertow) Prison Sex.ogg"
+	% audiotag --rename-files --rename-pattern '%t. %a (%A) %s' *.ogg
+
 BUGS
-	comment field support isn't fully functional for MP3s, because for some
-	reason, comment fields in MP3s are key = value pairs...  which doesn't
-	translate to ogg and flac... and id3tag doesn't support MP3 comments fields
-	fully.
+	- comment field support isn't fully functional for MP3s, because, for some
+	  reason, comment fields in MP3s are key/value pairs...  which doesn't
+	  translate to ogg and flac.  And id3tag doesn't support MP3 comment fields
+	  very well to begin with either.
+
+	- the --rename-files option will fail(ungracefully) if illegal filename
+	  characters are in a track's meta-data, eg. '/' on *nix(and most other
+	  systems), or '\' on 'doze(but who cares?).
 

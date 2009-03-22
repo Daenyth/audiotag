@@ -8,7 +8,7 @@ use File::Find;
 use File::Basename;
 use Getopt::Long;
 
-my $VERSION = '0.12';
+my $VERSION = '0.13';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
@@ -48,8 +48,12 @@ my $display_version = 0;
 my $recursive       = 0;
 my $recursive_noted = 0;
 my $list_genres     = 0;
+my $rename_files    = 0;
+my $rename_pattern  = '';
 
 my %Options = (
+	'rename-files'     => \$rename_files,
+	'rename-pattern=s' => \$rename_pattern,
 	'guesstrack|G'     => \$gt,
 	'track|T=s'        => \$track,
 	'track-pattern=s'  => \$track_pattern,
@@ -266,6 +270,15 @@ Option:
                                   compatible regex PATTERN
   -y, --year=YEAR               set the year to YEAR
   -c, --comments=COMMENTS       set the comments to COMMENTS
+      --rename-files            rename files based on meta-data
+      --rename-pattern          pattern to use when renaming files.  when no
+                                  rename pattern is specified, the rename
+                                  pattern defaults to: "%t. %a - %s"
+                                  string replacement directives:
+                                    %t: track number
+                                    %a: artist name
+                                    %s: song title
+                                    %A: album name
   -l, --list-info               list track info
   -r, --recursive               descend into directories recursively
   -p, --pretend                 show what WOULD have been done had --pretend
@@ -277,10 +290,33 @@ USAGE
 	return 1;
 }
 
+sub rename_file {
+	my ($file, $info) = @_;
+	my $_pretend = $pretend ? "I would be " : "";
+	my %directives = (
+		t => sprintf("%02d", $info->{TRACKNUM}),
+		a => $info->{ARTIST},
+		s => $info->{TITLE},
+		A => $info->{ALBUM},
+	);
+
+	$rename_pattern ||= "%t. %a - %s";
+
+	(my $type = $file) =~ s/.*\././;
+	(my $new_name = $rename_pattern) =~ s/%([tasA])/$directives{$1}/ge;
+
+	my $new_path = File::Spec->catfile(dirname($file), $new_name.$type);
+
+	print "\n", $_pretend, "renaming \`$file' ===> $new_path\n";
+	unless ($pretend) {
+		rename($file, $new_path)
+			or die "Couldn't rename \`$file' to \`$new_path': $!\n";
+	}
+}
+
 sub set_tag {
-	my ($file) = @_;
+	my ($file, $info) = @_;
 	my @cmd;
-	my %info;
 	my @result;
 	my %plus_tags;
 	my $_pretend = $pretend ? "I would be " : "";
@@ -299,13 +335,13 @@ sub set_tag {
 	if ($album_pattern  && $file =~ /$album_pattern/ ) { $album  = $1 }
 	if ($genre_pattern  && $file =~ /$genre_pattern/ ) { $genre  = $1 }
 	
-	%info = get_info($file);
+	# %info = get_info($file);
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) {
 		if ($id3_genres_UC{ uc $genre }) {
 			$plus_tags{"GENRE"} = "+++";
-			$info{"GENRE"} = $id3_genre_ids{ $id3_genres_UC{ uc $genre } };
+			$info->{"GENRE"} = $id3_genre_ids{ $id3_genres_UC{ uc $genre } };
 		}
 		else {
 			print <<"WTF";
@@ -316,21 +352,21 @@ WTF
 
 		}
 	}
-	if ($artist) { $plus_tags{"ARTIST"  } = "+++"; $info{"ARTIST"} = $artist }
-	if ($album ) { $plus_tags{"ALBUM"   } = "+++"; $info{"ALBUM" } = $album  }
-	if ($title ) { $plus_tags{"TITLE"   } = "+++"; $info{"TITLE" } = $title  }
-	if ($year  ) { $plus_tags{"YEAR"    } = "+++"; $info{"YEAR"  } = $year   }
+	if ($artist) { $plus_tags{"ARTIST"  } = "+++"; $info->{"ARTIST"} = $artist }
+	if ($album ) { $plus_tags{"ALBUM"   } = "+++"; $info->{"ALBUM" } = $album  }
+	if ($title ) { $plus_tags{"TITLE"   } = "+++"; $info->{"TITLE" } = $title  }
+	if ($year  ) { $plus_tags{"YEAR"    } = "+++"; $info->{"YEAR"  } = $year   }
 
 	if ($track ) {
 		$plus_tags{"TRACKNUM"} = $plus_tags{"TRACKNUMBER"} = "+++";
-		$info{"TRACKNUM"} = $info{"TRACKNUMBER"} = $track;
+		$info->{"TRACKNUM"} = $info->{"TRACKNUMBER"} = $track;
 	}
 
 # 15 Nov '03 RAU add support for comments
 	if ($comments)
 	{
 		$plus_tags{"COMMENTS"} = "+++";
-		$info{"COMMENTS"} = $comments;
+		$info->{"COMMENTS"} = $comments;
 	}
 # end RAU
 
@@ -338,20 +374,20 @@ WTF
 		push @cmd, "vorbiscomment";
 		push @cmd, "-w";
 
-		foreach (sort { $a cmp $b } keys %info) {
+		foreach (sort { $a cmp $b } keys %$info) {
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_: $info{$_}";
-			push @cmd, "-t", "$_=$info{$_}";
+			push @result, "$plus_tags{$_} $_: $info->{$_}";
+			push @cmd, "-t", "$_=$info->{$_}";
 		}
 		push @cmd, $file;
 	}
 	elsif ($file =~ /\.mp3$/i) {
 		push @cmd, "id3tag";
-		foreach (sort { $a cmp $b } keys %info) {
+		foreach (sort { $a cmp $b } keys %$info) {
 			# don't need extra track num field
 			/TRACKNUMBER/ && next;
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_: $info{$_}";
+			push @result, "$plus_tags{$_} $_: $info->{$_}";
 		}
 		if ($genre   ) { push @cmd, "--genre="   . $id3_genres_UC{uc $genre} }
 		if ($artist  ) { push @cmd, "--artist="  . $artist   }
@@ -367,11 +403,11 @@ WTF
 	elsif ($file =~ /\.flac$/i) {
 		push @cmd, "metaflac";
 
-		foreach (sort { $a cmp $b } keys %info) {
+		foreach (sort { $a cmp $b } keys %$info) {
 			$plus_tags{$_} ||= "===";
-			push @result, "$plus_tags{$_} $_: $info{$_}";
+			push @result, "$plus_tags{$_} $_: $info->{$_}";
 			push @cmd, "--remove-vc-field", $_;
-			push @cmd, "--set-vc-field", "$_=" . quotemeta $info{$_};
+			push @cmd, "--set-vc-field", "$_=" . quotemeta $info->{$_};
 		}
 		push @cmd, $file;
 	}
@@ -612,6 +648,10 @@ main: {
 	Getopt::Long::Configure ("bundling");
 	GetOptions( %Options ) or exit Usage();
 
+	my $alter_info = ( $gt || $list_info || $track || $genre || $artist ||
+		$album || $title || $title_pattern || $artist_pattern || $year ||
+		$album_pattern || $genre_pattern || $track_pattern || $comments    );
+
 	   if ($help           ) { Usage() }
 	elsif ($display_version) { print "$PROGRAM $VERSION\n$COPYRIGHT" }
 	elsif ($list_genres    ) {
@@ -619,11 +659,7 @@ main: {
 		printf("%5d  %s\n", $id3_genres{$_}, $_)
 			for sort keys %id3_genres;
 	}
-	elsif ( @ARGV &&
-		  ( $gt || $list_info || $track || $genre || $artist || $album ||
-		    $title || $title_pattern || $artist_pattern || $year ||
-		    $album_pattern || $genre_pattern || $track_pattern || $comments )
-	) {
+	elsif ( @ARGV && ($alter_info || $rename_files) ) {
 		if (!$force_title && $title && (@ARGV > 1)) {
 			print <<WTF;
 
@@ -651,20 +687,20 @@ WTF
 
 		if ($list_info) {
 			for (@files) {
-				my %info;
-				my @info;
-
-				%info = get_info($_);
-
-				for (sort { $a cmp $b } keys %info) {
-					push @info, "=== $_: $info{$_}"
-				}
+				my %info = get_info($_);
+				my @info = map( "=== $_: $info{$_}",
+				                sort { $a cmp $b } keys %info );
 
 				print "\n*** \`$_'\n", join("\n", @info), "\n";
 			}
 		}
 		else {
-			set_tag($_) for @files;
+			for (@files) {
+				my %info = get_info($_);
+
+				set_tag    ($_, \%info) if $alter_info;
+				rename_file($_, \%info) if $rename_files;
+			}
 		}
 	}
 	else { exit Usage() }

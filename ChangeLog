@@ -1,3 +1,13 @@
+2004.08.02  Ryan McGuigan <ryan@tempestgames.com>
+	* RELEASE 0.13
+
+
+2004.08.01  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: added initial support for renaming files based on meta-data,
+	  minor code cleanup
+	* README: added example for file renaming
+
+
 2004.06.13  Ryan McGuigan <ryan@tempestgames.com>
 	* RELEASE 0.12
 
