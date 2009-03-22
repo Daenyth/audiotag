@@ -1,3 +1,25 @@
+2004.04.05  Ryan McGuigan <ryan@tempestgames.com>
+	* README: updated
+	* audiotag: minor code cleanup
+	* RELEASE 0.11
+
+
+2004.04.02  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: fix improper filename quoting for external programs
+	* audiotag: make all filetypes optional, but at least 1 required
+	* audiotag: minor code cleanup, typo fixes
+	* audiotag: added a patch from someone who's email address I lost...
+	  if it was you, you're out there somewhere, let me know :D
+
+
+2004.03.30  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: minor code cleanup
+
+
+2004.03.27  Ryan McGuigan <ryan@tempestgames.com>
+	* audiotag: minor code cleanup, make oggvorbis support optional
+
+
 2003.11.12  Ryan McGuigan <ryan@tempestgames.com>
 	* audiotag: replaced quiet_system() with fork_exec() - fork()s, then
 	  exec()s, capturing the output from std(out|err)

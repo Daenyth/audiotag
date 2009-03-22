@@ -5,10 +5,10 @@ use warnings;
 use File::Spec;
 use Getopt::Long;
 
-our $VERSION = '0.10';
-our $PROGRAM = "Audiotag";
+my $VERSION = '0.11';
+my $PROGRAM = "Audiotag";
 
-our $COPYRIGHT = <<COPYRIGHT;
+my $COPYRIGHT = <<COPYRIGHT;
 Written by Ryan McGuigan
 
 Copyright (C) 2003 Ryan McGuigan
@@ -18,32 +18,35 @@ the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 COPYRIGHT
 
-our $cmd_output = "";
-our $filetypes = 'mp3|ogg';
-our $insane_error = "";
-our $help = 0;
-our $pretend = 0;
-our $gt = 0;
-our $track_pattern = '';
-our $track = '';
-our $force_track = 0;
-our $genre = '';
-our $genre_pattern = '';
-our $artist = '';
-our $artist_pattern = '';
-our $album = '';
-our $album_pattern = '';
-our $title = '';
-our $title_pattern = '';
-our $force_title = 0;
-our $year = '';
-our $list_info = 0;
-our $display_version = 0;
-our $recursive = 0;
-our $recursive_noted = 0;
-our $list_genres = 0;
+my $cmd_output = "";
+my $filetypes;
+my $insane_error = "";
+my $help = 0;
+my $pretend = 0;
+my $gt = 0;
+my $track_pattern = '';
+my $track = '';
+my $force_track = 0;
+my $genre = '';
+my $genre_pattern = '';
+my $artist = '';
+my $artist_pattern = '';
+my $album = '';
+my $album_pattern = '';
+my $title = '';
+my $title_pattern = '';
+my $force_title = 0;
+# 15 Nov '03 RAU Add support for comments
+my $comments = '';
+# end RAU
+my $year = '';
+my $list_info = 0;
+my $display_version = 0;
+my $recursive = 0;
+my $recursive_noted = 0;
+my $list_genres = 0;
 
-our %id3_names = (
+my %id3_names = (
 	# long id?
 	TCON => "GENRE",
 	TRCK => "TRACKNUM",
@@ -53,172 +56,171 @@ our %id3_names = (
 	TYER => "YEAR",
 
 	# short id?
-	TCO => "GENRE",
-	TRK => "TRACKNUM",
-	TAL => "ALBUM",
-	TP1 => "ARTIST",
-	TT2 => "TITLE",
-	TYE => "YEAR"
+	TCO  => "GENRE",
+	TRK  => "TRACKNUM",
+	TAL  => "ALBUM",
+	TP1  => "ARTIST",
+	TT2  => "TITLE",
+	TYE  => "YEAR"
 );
 
 # I grabbed these from id3lib - I hope they're correct
-our %id3_genres = (
-	"Blues" => 0,
-	"Classic Rock" => 1,
-	"Country" => 2,
-	"Dance" => 3,
-	"Disco" => 4,
-	"Funk" => 5,
-	"Grunge" => 6,
-	"Hip-Hop" => 7,
-	"Jazz" => 8,
-	"Metal" => 9,
-	"New Age" => 10,
-	"Oldies" => 11,
-	"Other" => 12,
-	"Pop" => 13,
-	"R&B" => 14,
-	"Rap" => 15,
-	"Reggae" => 16,
-	"Rock" => 17,
-	"Techno" => 18,
-	"Industrial" => 19,
-	"Alternative" => 20,
-	"Ska" => 21,
-	"Death Metal" => 22,
-	"Pranks" => 23,
-	"Soundtrack" => 24,
-	"Euro-Techno" => 25,
-	"Ambient" => 26,
-	"Trip-Hop" => 27,
-	"Vocal" => 28,
-	"Jazz+Funk" => 29,
-	"Fusion" => 30,
-	"Trance" => 31,
-	"Classical" => 32,
-	"Instrumental" => 33,
-	"Acid" => 34,
-	"House" => 35,
-	"Game" => 36,
-	"Sound Clip" => 37,
-	"Gospel" => 38,
-	"Noise" => 39,
-	"AlternRock" => 40,
-	"Bass" => 41,
-	"Soul" => 42,
-	"Punk" => 43,
-	"Space" => 44,
-	"Meditative" => 45,
-	"Instrumental Pop" => 46,
-	"Instrumental Rock" => 47,
-	"Ethnic" => 48,
-	"Gothic" => 49,
-	"Darkwave" => 50,
-	"Techno-Industrial" => 51,
-	"Electronic" => 52,
-	"Pop-Folk" => 53,
-	"Eurodance" => 54,
-	"Dream" => 55,
-	"Southern Rock" => 56,
-	"Comedy" => 57,
-	"Cult" => 58,
-	"Gangsta" => 59,
-	"Top 40" => 60,
-	"Christian Rap" => 61,
-	"Pop/Funk" => 62,
-	"Jungle" => 63,
-	"Native American" => 64,
-	"Cabaret" => 65,
-	"New Wave" => 66,
-	"Psychadelic" => 67,
-	"Rave" => 68,
-	"Showtunes" => 69,
-	"Trailer" => 70,
-	"Lo-Fi" => 71,
-	"Tribal" => 72,
-	"Acid Punk" => 73,
-	"Acid Jazz" => 74,
-	"Polka" => 75,
-	"Retro" => 76,
-	"Musical" => 77,
-	"Rock & Roll" => 78,
-	"Hard Rock" => 79,
+my %id3_genres = (
+	"Blues"                   =>   0,
+	"Classic Rock"            =>   1,
+	"Country"                 =>   2,
+	"Dance"                   =>   3,
+	"Disco"                   =>   4,
+	"Funk"                    =>   5,
+	"Grunge"                  =>   6,
+	"Hip-Hop"                 =>   7,
+	"Jazz"                    =>   8,
+	"Metal"                   =>   9,
+	"New Age"                 =>  10,
+	"Oldies"                  =>  11,
+	"Other"                   =>  12,
+	"Pop"                     =>  13,
+	"R&B"                     =>  14,
+	"Rap"                     =>  15,
+	"Reggae"                  =>  16,
+	"Rock"                    =>  17,
+	"Techno"                  =>  18,
+	"Industrial"              =>  19,
+	"Alternative"             =>  20,
+	"Ska"                     =>  21,
+	"Death Metal"             =>  22,
+	"Pranks"                  =>  23,
+	"Soundtrack"              =>  24,
+	"Euro-Techno"             =>  25,
+	"Ambient"                 =>  26,
+	"Trip-Hop"                =>  27,
+	"Vocal"                   =>  28,
+	"Jazz+Funk"               =>  29,
+	"Fusion"                  =>  30,
+	"Trance"                  =>  31,
+	"Classical"               =>  32,
+	"Instrumental"            =>  33,
+	"Acid"                    =>  34,
+	"House"                   =>  35,
+	"Game"                    =>  36,
+	"Sound Clip"              =>  37,
+	"Gospel"                  =>  38,
+	"Noise"                   =>  39,
+	"AlternRock"              =>  40,
+	"Bass"                    =>  41,
+	"Soul"                    =>  42,
+	"Punk"                    =>  43,
+	"Space"                   =>  44,
+	"Meditative"              =>  45,
+	"Instrumental Pop"        =>  46,
+	"Instrumental Rock"       =>  47,
+	"Ethnic"                  =>  48,
+	"Gothic"                  =>  49,
+	"Darkwave"                =>  50,
+	"Techno-Industrial"       =>  51,
+	"Electronic"              =>  52,
+	"Pop-Folk"                =>  53,
+	"Eurodance"               =>  54,
+	"Dream"                   =>  55,
+	"Southern Rock"           =>  56,
+	"Comedy"                  =>  57,
+	"Cult"                    =>  58,
+	"Gangsta"                 =>  59,
+	"Top 40"                  =>  60,
+	"Christian Rap"           =>  61,
+	"Pop/Funk"                =>  62,
+	"Jungle"                  =>  63,
+	"Native American"         =>  64,
+	"Cabaret"                 =>  65,
+	"New Wave"                =>  66,
+	"Psychadelic"             =>  67,
+	"Rave"                    =>  68,
+	"Showtunes"               =>  69,
+	"Trailer"                 =>  70,
+	"Lo-Fi"                   =>  71,
+	"Tribal"                  =>  72,
+	"Acid Punk"               =>  73,
+	"Acid Jazz"               =>  74,
+	"Polka"                   =>  75,
+	"Retro"                   =>  76,
+	"Musical"                 =>  77,
+	"Rock & Roll"             =>  78,
+	"Hard Rock"               =>  79,
+
 	# winamp extentions below
-	"Folk" => 80,
-	"Folk-Rock" => 81,
-	"National Folk" => 82,
-	"Swing" => 83,
-	"Fast Fusion" => 84,
-	"Bebob" => 85,
-	"Latin" => 86,
-	"Revival" => 87,
-	"Celtic" => 88,
-	"Bluegrass" => 89,
-	"Avantgarde" => 90,
-	"Gothic Rock" => 91,
-	"Progressive Rock" => 92,
-	"Psychedelic Rock" => 93,
-	"Symphonic Rock" => 94,
-	"Slow Rock" => 95,
-	"Big Band" => 96,
-	"Chorus" => 97,
-	"Easy Listening" => 98,
-	"Acoustic" => 99,
-	"Humour" => 100,
-	"Speech" => 101,
-	"Chanson" => 102,
-	"Opera" => 103,
-	"Chamber Music" => 104,
-	"Sonata" => 105,
-	"Symphony" => 106,
-	"Booty Bass" => 107,
-	"Primus" => 108,
-	"Porn Groove" => 109,
-	"Satire" => 110,
-	"Slow Jam" => 111,
-	"Club" => 112,
-	"Tango" => 113,
-	"Samba" => 114,
-	"Folklore" => 115,
-	"Ballad" => 116,
-	"Power Ballad" => 117,
-	"Rhythmic Soul" => 118,
-	"Freestyle" => 119,
-	"Duet" => 120,
-	"Punk Rock" => 121,
-	"Drum Solo" => 122,
-	"A capella" => 123,
-	"Euro-House" => 124,
-	"Dance Hall" => 125,
-	"Goa" => 126,
-	"Drum & Bass" => 127,
-	"Club-House" => 128,
-	"Hardcore" => 129,
-	"Terror" => 130,
-	"Indie" => 131,
-	"Britpop" => 132,
-	"Negerpunk" => 133,
-	"Polsk Punk" => 134,
-	"Beat" => 135,
-	"Christian Gangsta Rap" => 136,
-	"Heavy Metal" => 137,
-	"Black Metal" => 138,
-	"Crossover" => 139,
-	"Contemporary Christian" => 140,
-	"Christian Rock " => 141,
-	"Merengue" => 142,
-	"Salsa" => 143,
-	"Trash Metal" => 144,
-	"Anime" => 145,
-	"JPop" => 146,
-	"Synthpop" => 147,
+
+	"Folk"                    =>  80,
+	"Folk-Rock"               =>  81,
+	"National Folk"           =>  82,
+	"Swing"                   =>  83,
+	"Fast Fusion"             =>  84,
+	"Bebob"                   =>  85,
+	"Latin"                   =>  86,
+	"Revival"                 =>  87,
+	"Celtic"                  =>  88,
+	"Bluegrass"               =>  89,
+	"Avantgarde"              =>  90,
+	"Gothic Rock"             =>  91,
+	"Progressive Rock"        =>  92,
+	"Psychedelic Rock"        =>  93,
+	"Symphonic Rock"          =>  94,
+	"Slow Rock"               =>  95,
+	"Big Band"                =>  96,
+	"Chorus"                  =>  97,
+	"Easy Listening"          =>  98,
+	"Acoustic"                =>  99,
+	"Humour"                  => 100,
+	"Speech"                  => 101,
+	"Chanson"                 => 102,
+	"Opera"                   => 103,
+	"Chamber Music"           => 104,
+	"Sonata"                  => 105,
+	"Symphony"                => 106,
+	"Booty Bass"              => 107,
+	"Primus"                  => 108,
+	"Porn Groove"             => 109,
+	"Satire"                  => 110,
+	"Slow Jam"                => 111,
+	"Club"                    => 112,
+	"Tango"                   => 113,
+	"Samba"                   => 114,
+	"Folklore"                => 115,
+	"Ballad"                  => 116,
+	"Power Ballad"            => 117,
+	"Rhythmic Soul"           => 118,
+	"Freestyle"               => 119,
+	"Duet"                    => 120,
+	"Punk Rock"               => 121,
+	"Drum Solo"               => 122,
+	"A capella"               => 123,
+	"Euro-House"              => 124,
+	"Dance Hall"              => 125,
+	"Goa"                     => 126,
+	"Drum & Bass"             => 127,
+	"Club-House"              => 128,
+	"Hardcore"                => 129,
+	"Terror"                  => 130,
+	"Indie"                   => 131,
+	"Britpop"                 => 132,
+	"Negerpunk"               => 133,
+	"Polsk Punk"              => 134,
+	"Beat"                    => 135,
+	"Christian Gangsta Rap"   => 136,
+	"Heavy Metal"             => 137,
+	"Black Metal"             => 138,
+	"Crossover"               => 139,
+	"Contemporary Christian"  => 140,
+	"Christian Rock "         => 141,
+	"Merengue"                => 142,
+	"Salsa"                   => 143,
+	"Trash Metal"             => 144,
+	"Anime"                   => 145,
+	"JPop"                    => 146,
+	"Synthpop"                => 147,
 );
 
-our %id3_genres_UC;
-foreach (keys %id3_genres) { $id3_genres_UC{uc $_} = $id3_genres{$_} }
-
-our %id3_genre_ids;
-foreach (keys %id3_genres) { $id3_genre_ids{$id3_genres{$_}} = $_ }
+my %id3_genres_UC = map { uc $_ => $id3_genres{$_} } keys %id3_genres;
+my %id3_genre_ids = map { $id3_genres{$_} => $_    } keys %id3_genres;
 
 sub Usage {
 	print <<USAGE;
@@ -244,6 +246,7 @@ Option:
       --title-pattern=PATTERN   extract the title from the filename using perl
                                   compatible regex PATTERN
   -y, --year=YEAR               set the year to YEAR
+  -c, --comments=COMMENTS       set the comments to COMMENTS
   -l, --list-info               list track info
   -r, --recursive               descend into directories recursively
   -p, --pretend                 show what WOULD have been done had --pretend
@@ -265,21 +268,21 @@ sub set_tag {
 
 	# reset vars in case we get no match
 	if ($gt) { $track = "" }
-	if ($track_pattern) { $track = "" }
-	if ($title_pattern) { $title = "" }
+	if ($track_pattern ) { $track  = "" }
+	if ($title_pattern ) { $title  = "" }
 	if ($artist_pattern) { $artist = "" }
-	if ($album_pattern) { $album = "" }
-	if ($genre_pattern) { $genre = "" }
+	if ($album_pattern ) { $album  = "" }
+	if ($genre_pattern ) { $genre  = "" }
 
-	if ($track_pattern && $file =~ /$track_pattern/) { $track = $1 }
-	if ($title_pattern && $file =~ /$title_pattern/) { $title = $1 }
+	if ($track_pattern  && $file =~ /$track_pattern/ ) { $track  = $1 }
+	if ($title_pattern  && $file =~ /$title_pattern/ ) { $title  = $1 }
 	if ($artist_pattern && $file =~ /$artist_pattern/) { $artist = $1 }
-	if ($album_pattern && $file =~ /$album_pattern/) { $album = $1 }
-	if ($genre_pattern && $file =~ /$genre_pattern/) { $genre = $1 }
+	if ($album_pattern  && $file =~ /$album_pattern/ ) { $album  = $1 }
+	if ($genre_pattern  && $file =~ /$genre_pattern/ ) { $genre  = $1 }
 	
-	if ($file =~ /\.ogg$/i) { %info = get_vorbis_info($file) }
-	elsif ($file =~ /\.mp3$/i) { %info = get_mp3_info($file) }
-	elsif ($file =~ /\.flac$/i) { %info = get_flac_info($file) }
+	   if ($file =~ /\.ogg$/i ) { %info = get_vorbis_info($file) }
+	elsif ($file =~ /\.mp3$/i ) { %info = get_mp3_info   ($file) }
+	elsif ($file =~ /\.flac$/i) { %info = get_flac_info  ($file) }
 	else {
 		# we should never get to here!
 		print STDERR "$file: the filename must end in .($filetypes)\n";
@@ -301,12 +304,23 @@ WTF
 
 		}
 	}
-	if ($artist) { $plus_tags{"ARTIST"} = "+++";  $info{"ARTIST"} = $artist }
-	if ($album) { $plus_tags{"ALBUM"} = "+++";  $info{"ALBUM"} = $album }
-	if ($title) { $plus_tags{"TITLE"} = "+++";  $info{"TITLE"} = $title }
-	if ($track) { $plus_tags{"TRACKNUM"} = $plus_tags{"TRACKNUMBER"} = "+++";
-		$info{"TRACKNUM"} = $info{"TRACKNUMBER"} = $track }
-	if ($year) { $plus_tags{"YEAR"} = "+++";  $info{"YEAR"} = $year }
+	if ($artist) { $plus_tags{"ARTIST"  } = "+++"; $info{"ARTIST"} = $artist }
+	if ($album ) { $plus_tags{"ALBUM"   } = "+++"; $info{"ALBUM" } = $album  }
+	if ($title ) { $plus_tags{"TITLE"   } = "+++"; $info{"TITLE" } = $title  }
+	if ($year  ) { $plus_tags{"YEAR"    } = "+++"; $info{"YEAR"  } = $year   }
+
+	if ($track ) {
+		$plus_tags{"TRACKNUM"} = $plus_tags{"TRACKNUMBER"} = "+++";
+		$info{"TRACKNUM"} = $info{"TRACKNUMBER"} = $track;
+	}
+
+# 15 Nov '03 RAU add support for comments
+	if ($comments)
+	{
+		$plus_tags{"COMMENTS"} = "+++";
+		$info{"COMMENTS"} = $comments;
+	}
+# end RAU
 
 	if ($file =~ /\.ogg$/i) {
 		push @cmd, "vorbiscomment";
@@ -327,12 +341,15 @@ WTF
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info{$_}";
 		}
-		if ($genre) { push @cmd, "--genre=" . $id3_genres_UC{uc $genre} }
-		if ($artist) { push @cmd, "--artist=" . $artist }
-		if ($album) { push @cmd, "--album=" . $album }
-		if ($title) { push @cmd, "--song=" .  $title }
-		if ($track) { push @cmd, "--track=" . $track }
-		if ($year) { push @cmd, "--year=" . $year }
+		if ($genre   ) { push @cmd, "--genre="   . $id3_genres_UC{uc $genre} }
+		if ($artist  ) { push @cmd, "--artist="  . $artist   }
+		if ($album   ) { push @cmd, "--album="   . $album    }
+		if ($title   ) { push @cmd, "--song="    . $title    }
+		if ($track   ) { push @cmd, "--track="   . $track    }
+		if ($year    ) { push @cmd, "--year="    . $year     }
+# 15 Nov '03 RAU add comments support
+		if ($comments) { push @cmd, "--comment=" . $comments }
+# end RAU
 		push @cmd, $file;
 	}
 	elsif ($file =~ /\.flac$/i) {
@@ -346,29 +363,35 @@ WTF
 		# FIXME - these shouldn't all need to be spelled out like this...
 		if ($genre) {
 			push @cmd, "--remove-vc-field", "GENRE";
-			push @cmd, "--set-vc-field", "GENRE=$info{GENRE}";
+			push @cmd, "--set-vc-field", "GENRE=" . quotemeta $info{GENRE};
 		}
 		if ($artist) {
 			push @cmd, "--remove-vc-field", "ARTIST";
-			push @cmd, "--set-vc-field", "ARTIST=$info{ARTIST}";
+			push @cmd, "--set-vc-field", "ARTIST=" . quotemeta $info{ARTIST};
 		}
 		if ($album) {
 			push @cmd, "--remove-vc-field", "ALBUM";
-			push @cmd, "--set-vc-field", "ALBUM=$info{ALBUM}";
+			push @cmd, "--set-vc-field", "ALBUM=" . quotemeta $info{ALBUM};
 		}
 		if ($title) {
 			push @cmd, "--remove-vc-field", "TITLE";
-			push @cmd, "--set-vc-field", "TITLE=$info{TITLE}";
+			push @cmd, "--set-vc-field", "TITLE=" . quotemeta $info{TITLE};
 		}
 		if ($year) {
 			push @cmd, "--remove-vc-field", "YEAR";
-			push @cmd, "--set-vc-field", "YEAR=$info{YEAR}";
+			push @cmd, "--set-vc-field", "YEAR=" . quotemeta $info{YEAR};
 		}
+# 15 Nov '03 RAU add comments support
+		if ($comments) {
+			push @cmd, "--remove-vc-field", "COMMENTS";
+			push @cmd, "--set-vc-field", "COMMENTS=" . quotemeta $info{COMMENTS};
+		}
+# end RAU
 		if ($track) {
 			push @cmd, "--remove-vc-field", "TRACKNUM";
-			push @cmd, "--set-vc-field", "TRACKNUM=$info{TRACKNUM}";
+			push @cmd, "--set-vc-field", "TRACKNUM=" . quotemeta $info{TRACKNUM};
 			push @cmd, "--remove-vc-field", "TRACKNUMBER";
-			push @cmd, "--set-vc-field", "TRACKNUMBER=$info{TRACKNUMBER}";
+			push @cmd, "--set-vc-field", "TRACKNUMBER=" . quotemeta $info{TRACKNUMBER};
 		}
 		push @cmd, $file;
 	}
@@ -405,7 +428,6 @@ WTF
 			# was that creative or what? :)
 		}
 	}
-	#unless ($pretend) { quiet_system(@cmd) }
 }
 
 sub continue_or_exit {
@@ -423,15 +445,14 @@ sub continue_or_exit {
 # deal...  Multiple types of data can be encapsulated using the ogg transport
 # layer, however, most programs assume that .ogg means Ogg/Vorbis, even some of
 # Xiph's own software.  Should we do the same, even though that's wrong?  For
-# example, flac can use it's own filetype, or it can be encapsulated in ogg,
+# example, flac can use it's own filetype, or, it can be encapsulated in ogg,
 # and when encapsulated in ogg `flac' creates files with... you guessed, a .ogg
 # extension.
 sub get_vorbis_info {
 	my ($file) = @_;
 	my %info;
 
-	# fixed! done elsewhere - FIXME - gracefully handle missing `vorbiscomment'
-	foreach (split /\n/, `vorbiscomment "$file"`) {
+	foreach (split /\n/, `vorbiscomment @{[quotemeta $file]}`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
 		}
@@ -444,7 +465,7 @@ sub get_flac_info {
 	my ($file) = @_;
 	my %info;
 
-	foreach (split /\n/, `metaflac --export-vc-to=- "$file"`) {
+	foreach (split /\n/, `metaflac --export-vc-to=- @{[quotemeta $file]}`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
 		}
@@ -457,15 +478,20 @@ sub get_mp3_info {
 	my ($file) = @_;
 	my %info;
 
-	# fixed! done elsewhere - FIXME - gracefully handle missing `id3info'
-	foreach (split /\n/, `id3info "$file"`) {
+	foreach (split /\n/, `id3info @{[quotemeta $file]}`) {
 		if (/=== ([A-Z0-9]{3,4}) \(.*?\): (.*)/) {
 			if ($id3_names{$1}) { $info{ $id3_names{$1} } = $2 }
 		}
+# 15 Nov '03 RAU add comments support
+		if (/=== COMM [^:]+:[^:]+: (.*)/) {
+			$info{COMMENTS} = $1;
+		}
+# end RAU
 	}
 
-	if ($info{"GENRE"} && $info{"GENRE"} =~ /\((\d+)\)/)
-	{ $info{"GENRE"} = $id3_genre_ids{$1} }
+	if ($info{"GENRE"} && $info{"GENRE"} =~ /\((\d+)\)/) {
+		$info{"GENRE"} = $id3_genre_ids{$1}
+	}
 
 	return %info;
 }
@@ -492,94 +518,74 @@ sub fork_exec {
 	return $retval;
 }
 
-#sub quiet_system {
-#	my (@cmd) = @_;
-#	my $oldout;
-#	my $olderr;
-#	my $retval;
-#
-#	# save stdout and stderr
-#	open $oldout, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
-#	open $olderr, ">&STDERR" or warn "Can't dup STDERR $!\n";
-#
-#	open STDOUT, ">", File::Spec->devnull() or warn "No null device?: $!\n";
-#	open STDERR, ">&STDOUT" or warn "Can't dup STDOUT: $!\n";
-#
-#	select STDOUT; $| = 1;
-#	select STDERR; $| = 1;
-#
-#	# MUST BE FIXED BEFORE 1.0!!!
-#	# FIXME - we should capture stdout/err for the user in case of a problem
-#	$retval = system(@cmd);
-#
-#	close STDOUT;
-#	close STDERR;
-#
-#	# restore stdout and stderr
-#	open STDOUT, ">&", $oldout or die "Can't restore STDOUT!: $!\n";
-#	open STDERR, ">&", $olderr or die "Can't restore STDERR!: $!\n";
-#
-#	return $retval;
-#}
-
 sub descend_into {
 	my (@dirs) = @_;
 	my @files;
 
+	# FIXME - rewrite this using File::Find
+
 	while (local $_ = shift @dirs) {
-		# FIXME - must check for recursive symlinks before
-		# implementing symlink traversal
 		if (-l $_) { print "FIXME - I don't handle symlinks yet.  sorry...\n" }
 		elsif (opendir DIR, $_) {
 			foreach my $dirent (grep !/^\./, readdir DIR) {
-				# FIXME? - we're assuming catfile will work for files and
-				# dirs, but on some (non-Unix) platforms this may not be
-				# the case.  do we give a flying fuck about non-Unix
-				# platforms anyway?  probably not.
 				$dirent = File::Spec->catfile($_, $dirent);
 				if (-d $dirent) { push @dirs, $dirent }
 				elsif ($dirent =~ /\.($filetypes)$/i) { push @files, $dirent }
 			}
 		}
-		else { warn "can't open dir \`$_': $!\n" }
+		else { warn "cannott open dir \`$_': $!\n" }
 	}
 
 	return @files;
 }
 
+sub _check_for_prog {
+	my ($types, $missing, $type) = (shift, shift, shift);
+	my @needed;
+	my %needed = ( type => $type, needed => \@needed );
+
+	for (@_) { push @needed, "\`$_'" unless which($_) }
+
+	   if (@needed) { push @$missing, \%needed }
+	else            { push @$types, $type      }
+}
+
 sub sane {
 	my $retval = 1;
+	my @filetypes;
 	my @missing;
 
-	foreach ("vorbiscomment", "id3info", "id3tag") {
-		unless ( which($_) ) {
-			$retval = 0;
-			push @missing, "\`$_'";
-		}
+	_check_for_prog(\@filetypes, \@missing, "mp3" , "id3info", "id3tag");
+	_check_for_prog(\@filetypes, \@missing, "ogg" , "vorbiscomment"    );
+	_check_for_prog(\@filetypes, \@missing, "flac", "metaflac"         );
+
+	for (@missing) {
+		warn "WARNING: " . join(", ", @{$_->{needed}}) .
+		     " not found in path, required for $_->{type} support!\n";
 	}
 
-	# flac support optional
-	if (which("metaflac")) { $filetypes .= '|flac' }
-
-	@missing > 1 and $missing[-1] = "\b\b and $missing[-1]";
-	$retval or $insane_error = join(", ", @missing) . " not found in path!";
-
-	return $retval;
+	$filetypes = join "|", @filetypes;
+	$filetypes or $insane_error =
+		"id3info/id3tag, vorbiscomment, and metaflac not found in path!",
+		return 0;
+	
+	return 1;
 }
 
 sub which {
-	my ($prog) = @_;
+	my $prog = shift;
 	my @paths = split ":", $ENV{"PATH"};
 	my $progpath;
 
-	foreach (@paths) {
+	for (@paths) {
 		$progpath = File::Spec->catfile($_, $prog);
-		if (-x $progpath) { return $progpath }
+		return $progpath if -x $progpath;
 	}
 
-	return undef;
+	return;
 }
 
+# FIXME - this is all way too ugly
 main: {
 	my @files;
 
@@ -599,6 +605,7 @@ main: {
 		'title|t=s' => \$title,
 		'title-pattern=s' => \$title_pattern,
 		'year|y=s' => \$year,
+		'comments|c=s' => \$comments,
 		'pretend|p' => \$pretend,
 		'force-title' => \$force_title,
 		'force-track' => \$force_track,
@@ -609,21 +616,22 @@ main: {
 		'help|h' => \$help,
 	) or exit Usage();
 
-	if ($help) { Usage() }
+	   if ($help           ) { Usage() }
 	elsif ($display_version) { print "$PROGRAM $VERSION\n$COPYRIGHT" }
-	elsif ($list_genres) {
+	elsif ($list_genres    ) {
 		print "Valid genres in alphabetical order:\nID3 #  GENRE\n";
-		foreach (sort keys %id3_genres) { printf "%5d  %s\n", $id3_genres{$_}, $_ }
+		for (sort keys %id3_genres) { printf "%5d  %s\n", $id3_genres{$_}, $_ }
 	}
-	elsif (@ARGV && ( $gt || $list_info || $track || $genre || $artist
-		|| $album || $title || $title_pattern || $artist_pattern || $year
-		|| $album_pattern || $genre_pattern || $track_pattern ) )
-	{
+	elsif ( @ARGV &&
+		  ( $gt || $list_info || $track || $genre || $artist || $album ||
+	        $title || $title_pattern || $artist_pattern || $year ||
+	        $album_pattern || $genre_pattern || $track_pattern || $comments )
+	) {
 		if (!$force_title && $title && (@ARGV > 1)) {
 			print <<WTF;
 
 It does not make much sense to tag multiple files with the same title.  That's
-probably not what you meant to do, so I'm stopping now.  If I'm mistaken, and
+probably not what you meant to do, so I'm stopping now.  If I'm mistaken and
 you really do want to tag multiple files with the same title, pass the
 (undocumented) --force-title option.
 
@@ -635,7 +643,7 @@ WTF
 
 It does not make much sense to tag multiple files with the same track number.
 That's probably not what you meant to do, so I'm stopping now.  If I'm
-mistaken, and you really do want to tag multiple files with the same track
+mistaken and you really do want to tag multiple files with the same track
 number, pass the (undocumented) --force-track option.
 
 WTF
@@ -667,11 +675,14 @@ WTF
 						my %info;
 						my @info;
 
-						if ($_ =~ /\.ogg$/i) { %info = get_vorbis_info($_) }
-						elsif ($_ =~ /\.flac$/i) { %info = get_flac_info($_) }
-						elsif ($_ =~ /\.mp3$/i) { %info = get_mp3_info($_) }
-						foreach (sort { $a cmp $b } keys %info)
-						{ push @info, "=== $_: $info{$_}" }
+						   if ($_ =~ /\.ogg$/i ) { %info = get_vorbis_info($_) }
+						elsif ($_ =~ /\.flac$/i) { %info =   get_flac_info($_) }
+						elsif ($_ =~ /\.mp3$/i ) { %info =    get_mp3_info($_) }
+
+						for (sort { $a cmp $b } keys %info) {
+							push @info, "=== $_: $info{$_}"
+						}
+
 						print "\n*** \`$_'\n", join("\n", @info), "\n";
 					}
 					else { set_tag($_) }

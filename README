@@ -1,37 +1,36 @@
-To use Audiotag, you must have:
+REQUIREMENTS
+	To use Audiotag, you must have:
 
-1. vorbiscomment (from vorbis-tools, xiph.org/ogg/vorbis) in your path
-2. id3tag & id3info (from id3lib, id3lib.sourceforge.net) in your path
-3. Perl >= 5.6
-4. (optionally) metaflac (from flac, flac.sourceforge.net) in your path
+	1. Perl >= 5.6
+	2. At least one of...
+	   - id3tag and id3info (from id3lib, id3lib.sourceforge.net) in $PATH
+	   - vorbiscomment (from vorbis-tools, xiph.org/ogg/vorbis) in $PATH
+	   - metaflac (from flac, flac.sourceforge.net) in $PATH
 
 INSTALL
-
-Just copy `audiotag' to /usr/local/bin (or somewhere in your path)
+	Just copy `audiotag' to /usr/local/bin (or somewhere in $PATH)
 
 USAGE
+	% audiotag [OPTION]... [FILE]...
 
-% audiotag [OPTION]... [FILE]...
+	tip: Use the -p option before running it for real!
 
-Examples:
+	Examples:
 
-Set GENRE to "Metal"
-% audiotag -g Metal *.mp3 *.ogg
+	Set GENRE to "Metal"
+	% audiotag -g Metal *.mp3 *.ogg
 
-Guess and set TRACKNUM - guess track uses the simple pattern '(\d\d)\.'
-% audiotag -G *.mp3 *.ogg
+	Guess and set TRACKNUM - guess track uses the simple pattern '(\d\d)\.'
+	% audiotag -G *.mp3 *.ogg
 
-Set TITLE based on a pattern match of the filename - This example would work
-for files with a name in the form "Mudvayne - 01. Shadow of a Man.ogg"
-% audiotag --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
+	Set TITLE based on a pattern match of the filename - This example would
+	work for files with a name in the form "Mudvayne - 01. Shadow of a Man.ogg"
+	% audiotag --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
 
-Same as above, but don't really do anything, just see what it WOULD do
-% audiotag --pretend --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
+	Same as above, but don't really do anything, just see what it WOULD do
+	% audiotag --pretend --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
 
 BUGS
-
-Audiotag requires more testing.  Currently it doesn't handle symlinks.
-
-Use the -p option before running it for real.
-
+	doesn't handle symlinks
+	comment field support isn't fully functional for MP3s
 
