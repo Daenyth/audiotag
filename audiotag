@@ -464,8 +464,8 @@ WTF
 		foreach (sort { $a cmp $b } keys %$info) {
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info->{$_}";
-			push @cmd, "--remove-vc-field", $_;
-			push @cmd, "--set-vc-field", "$_=$info->{$_}";
+			push @cmd, "--remove-tag", $_;
+			push @cmd, "--set-tag", "$_=$info->{$_}";
 		}
 		push @cmd, $file;
 	}
