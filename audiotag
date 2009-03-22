@@ -6,9 +6,10 @@ use warnings;
 use File::Spec;
 use File::Find;
 use File::Basename;
+use File::Path;
 use Getopt::Long;
 
-my $VERSION = '0.14';
+my $VERSION = '0.15';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
@@ -284,6 +285,10 @@ Option:
                                     %a: artist name
                                     %t: song title
                                     %A: album name
+				  You can specify subdirectories in the rename 
+				  pattern. "%a - %A/%T. %t" will rename and move
+				  the files. "%a -%A/" moves the files to new
+				  subdirectories without renaming.
   -S, --convert-spaces          convert spaces to underscores when renaming
                                   files
   -l, --list-info               list track info
@@ -305,8 +310,10 @@ sub rename_file {
 		a => $info->{ARTIST},
 		t => $info->{TITLE},
 		A => $info->{ALBUM},
+		o => basename($file)
 	);
-
+	$directives{'o'} =~ s/\.[^.]*$//;
+	
 	$rename_pattern ||= "%T. %a - %t";
 
 	if ($convert_spaces) {
@@ -315,12 +322,20 @@ sub rename_file {
 	}
 
 	(my $type = $file) =~ s/.*\././;
-	(my $new_name = $rename_pattern) =~ s/%([TatA])/$directives{$1}/ge;
+	(my $new_name = $rename_pattern) =~ s/%([TatAo])/$directives{$1}/ge;
+	#convert ".../newdir/" to ".../newdir/oldfilename
+	$new_name =~ s|/$|/$directives{o}|;
 
 	my $new_path = File::Spec->catfile(dirname($file), $new_name.$type);
 
 	print "\n", $_pretend, "renaming \`$file' ===> \`$new_path'\n";
 	unless ($pretend) {
+		#make dirs
+		eval{ mkpath(dirname($new_path)) };
+		if ($@) {
+			die "Couldn't create $new_path: $@\n";
+		}
+		
 		rename($file, $new_path)
 			or die "Couldn't rename \`$file' to \`$new_path': $!\n";
 	}
@@ -495,6 +510,8 @@ sub get_vorbis_info {
 			$info{ uc $1 } = $2;
 		}
 	}
+
+	$info{TRACKNUM} = $info{TRACKNUMBER};
 
 	return %info;
 }

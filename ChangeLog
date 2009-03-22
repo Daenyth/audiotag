@@ -1,3 +1,9 @@
+2006.05.18  Ryan McGuigan <ryan@tempestgames.com>
+	* applied patches from Karsten Looschen <karsten.looschen@uni-oldenburg.de>
+	  - ogg info fix
+	  - file renaming with directory creation / file moving addition
+
+
 2005.01.25  Ryan McGuigan <ryan@tempestgames.com>
 	* audiotag: added underscore/space conversion options.
 	* RELEASE 0.14
