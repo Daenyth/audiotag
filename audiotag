@@ -2,66 +2,85 @@
 
 use strict;
 use warnings;
+
 use File::Spec;
+use File::Find;
+use File::Basename;
 use Getopt::Long;
 
-my $VERSION = '0.11';
+my $VERSION = '0.12';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
 Written by Ryan McGuigan
 
-Copyright (C) 2003 Ryan McGuigan
+Copyright (C) 2004 Ryan McGuigan
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
 (at your option) any later version.
 COPYRIGHT
 
-my $cmd_output = "";
 my $filetypes;
-my $insane_error = "";
-my $help = 0;
-my $pretend = 0;
-my $gt = 0;
-my $track_pattern = '';
-my $track = '';
-my $force_track = 0;
-my $genre = '';
-my $genre_pattern = '';
-my $artist = '';
-my $artist_pattern = '';
-my $album = '';
-my $album_pattern = '';
-my $title = '';
-my $title_pattern = '';
-my $force_title = 0;
+my $cmd_output      = "";
+my $insane_error    = "";
+my $track_pattern   = '';
+my $track           = '';
+my $genre           = '';
+my $genre_pattern   = '';
+my $artist          = '';
+my $artist_pattern  = '';
+my $album           = '';
+my $album_pattern   = '';
+my $title           = '';
+my $title_pattern   = '';
 # 15 Nov '03 RAU Add support for comments
-my $comments = '';
+my $comments        = '';
 # end RAU
-my $year = '';
-my $list_info = 0;
+my $year            = '';
+my $gt              = 0;
+my $help            = 0;
+my $pretend         = 0;
+my $force_title     = 0;
+my $force_track     = 0;
+my $list_info       = 0;
 my $display_version = 0;
-my $recursive = 0;
+my $recursive       = 0;
 my $recursive_noted = 0;
-my $list_genres = 0;
+my $list_genres     = 0;
+
+my %Options = (
+	'guesstrack|G'     => \$gt,
+	'track|T=s'        => \$track,
+	'track-pattern=s'  => \$track_pattern,
+	'genre|g=s'        => \$genre,
+	'genre-pattern=s'  => \$genre_pattern,
+	'artist|a=s'       => \$artist,
+	'artist-pattern=s' => \$artist_pattern,
+	'album|A=s'        => \$album,
+	'album-pattern=s'  => \$album_pattern,
+	'title|t=s'        => \$title,
+	'title-pattern=s'  => \$title_pattern,
+	'year|y=s'         => \$year,
+	'comments|c=s'     => \$comments,
+	'pretend|p'        => \$pretend,
+	'force-title'      => \$force_title,
+	'force-track'      => \$force_track,
+	'recursive|r'      => \$recursive,
+	'list-info|l'      => \$list_info,
+	'list-genres'      => \$list_genres,
+	'version|V'        => \$display_version,
+	'help|h'           => \$help,
+);
 
 my %id3_names = (
-	# long id?
-	TCON => "GENRE",
-	TRCK => "TRACKNUM",
-	TALB => "ALBUM",
-	TPE1 => "ARTIST",
-	TIT2 => "TITLE",
-	TYER => "YEAR",
-
-	# short id?
-	TCO  => "GENRE",
-	TRK  => "TRACKNUM",
-	TAL  => "ALBUM",
-	TP1  => "ARTIST",
-	TT2  => "TITLE",
-	TYE  => "YEAR"
+	# long id?           # short id?         
+	TCON => "GENRE",     TCO  => "GENRE",    
+	TRCK => "TRACKNUM",  TRK  => "TRACKNUM", 
+	TALB => "ALBUM",     TAL  => "ALBUM",    
+	TPE1 => "ARTIST",    TP1  => "ARTIST",   
+	TIT2 => "TITLE",     TT2  => "TITLE",    
+	TYER => "YEAR",      TYE  => "YEAR",
 );
 
 # I grabbed these from id3lib - I hope they're correct
@@ -280,14 +299,7 @@ sub set_tag {
 	if ($album_pattern  && $file =~ /$album_pattern/ ) { $album  = $1 }
 	if ($genre_pattern  && $file =~ /$genre_pattern/ ) { $genre  = $1 }
 	
-	   if ($file =~ /\.ogg$/i ) { %info = get_vorbis_info($file) }
-	elsif ($file =~ /\.mp3$/i ) { %info = get_mp3_info   ($file) }
-	elsif ($file =~ /\.flac$/i) { %info = get_flac_info  ($file) }
-	else {
-		# we should never get to here!
-		print STDERR "$file: the filename must end in .($filetypes)\n";
-		return;
-	}
+	%info = get_info($file);
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) {
@@ -358,40 +370,8 @@ WTF
 		foreach (sort { $a cmp $b } keys %info) {
 			$plus_tags{$_} ||= "===";
 			push @result, "$plus_tags{$_} $_: $info{$_}";
-		}
-
-		# FIXME - these shouldn't all need to be spelled out like this...
-		if ($genre) {
-			push @cmd, "--remove-vc-field", "GENRE";
-			push @cmd, "--set-vc-field", "GENRE=" . quotemeta $info{GENRE};
-		}
-		if ($artist) {
-			push @cmd, "--remove-vc-field", "ARTIST";
-			push @cmd, "--set-vc-field", "ARTIST=" . quotemeta $info{ARTIST};
-		}
-		if ($album) {
-			push @cmd, "--remove-vc-field", "ALBUM";
-			push @cmd, "--set-vc-field", "ALBUM=" . quotemeta $info{ALBUM};
-		}
-		if ($title) {
-			push @cmd, "--remove-vc-field", "TITLE";
-			push @cmd, "--set-vc-field", "TITLE=" . quotemeta $info{TITLE};
-		}
-		if ($year) {
-			push @cmd, "--remove-vc-field", "YEAR";
-			push @cmd, "--set-vc-field", "YEAR=" . quotemeta $info{YEAR};
-		}
-# 15 Nov '03 RAU add comments support
-		if ($comments) {
-			push @cmd, "--remove-vc-field", "COMMENTS";
-			push @cmd, "--set-vc-field", "COMMENTS=" . quotemeta $info{COMMENTS};
-		}
-# end RAU
-		if ($track) {
-			push @cmd, "--remove-vc-field", "TRACKNUM";
-			push @cmd, "--set-vc-field", "TRACKNUM=" . quotemeta $info{TRACKNUM};
-			push @cmd, "--remove-vc-field", "TRACKNUMBER";
-			push @cmd, "--set-vc-field", "TRACKNUMBER=" . quotemeta $info{TRACKNUMBER};
+			push @cmd, "--remove-vc-field", $_;
+			push @cmd, "--set-vc-field", "$_=" . quotemeta $info{$_};
 		}
 		push @cmd, $file;
 	}
@@ -518,27 +498,6 @@ sub fork_exec {
 	return $retval;
 }
 
-sub descend_into {
-	my (@dirs) = @_;
-	my @files;
-
-	# FIXME - rewrite this using File::Find
-
-	while (local $_ = shift @dirs) {
-		if (-l $_) { print "FIXME - I don't handle symlinks yet.  sorry...\n" }
-		elsif (opendir DIR, $_) {
-			foreach my $dirent (grep !/^\./, readdir DIR) {
-				$dirent = File::Spec->catfile($_, $dirent);
-				if (-d $dirent) { push @dirs, $dirent }
-				elsif ($dirent =~ /\.($filetypes)$/i) { push @files, $dirent }
-			}
-		}
-		else { warn "cannott open dir \`$_': $!\n" }
-	}
-
-	return @files;
-}
-
 sub _check_for_prog {
 	my ($types, $missing, $type) = (shift, shift, shift);
 	my @needed;
@@ -546,8 +505,8 @@ sub _check_for_prog {
 
 	for (@_) { push @needed, "\`$_'" unless which($_) }
 
-	   if (@needed) { push @$missing, \%needed }
-	else            { push @$types, $type      }
+	  if (@needed) { push @$missing, \%needed }
+	else           { push @$types, $type      }
 }
 
 sub sane {
@@ -565,9 +524,11 @@ sub sane {
 	}
 
 	$filetypes = join "|", @filetypes;
-	$filetypes or $insane_error =
-		"id3info/id3tag, vorbiscomment, and metaflac not found in path!",
+	unless ($filetypes) {
+		$insane_error = "id3info/id3tag, vorbiscomment, and metaflac ".
+		                "not found in path!";
 		return 0;
+	}
 	
 	return 1;
 }
@@ -585,47 +546,83 @@ sub which {
 	return;
 }
 
-# FIXME - this is all way too ugly
-main: {
+sub _find {
 	my @files;
 
+	if ($recursive) {
+		my $wanted = sub {
+			unless (-e $File::Find::name) {
+				print "$0: No such file or directory: $_\n";
+				return;
+			}
+			if ($File::Find::name =~ /$filetypes$/) {
+				push @files, $File::Find::name;
+			}
+			else {
+				(my $filetype = basename($_)) =~ s/.*(\..*)$/$1/;
+				print "\n*** \`$_'\nno support for $filetype files\n"
+			}
+		};
+
+		find( { no_chdir    => 1,
+		        follow_skip => 2,
+		        follow      => 1,
+		        wanted      => $wanted,
+		      }, @_ );
+	}
+	else {
+		for (@_) {
+			unless (-e) {
+				print "$0: No such file or directory: $_\n";
+				next;
+			}
+			if (-d $_ and !$recursive_noted) {
+				print <<'WTF';
+
+Pass the --recursive option if you want to descend into directories.
+
+WTF
+				sleep 1;
+				$recursive_noted = 1;
+			}
+			elsif ($_ =~ /$filetypes$/) { push @files, $_ }
+			else {
+				(my $filetype = basename($_)) =~ s/.*(\..*)$/$1/;
+				print "\n*** \`$_'\nno support for $filetype files\n"
+			}
+		}
+	}
+
+	return @files;
+}
+
+sub get_info {
+	my $file = shift;
+
+	   if ($file =~ /\. ogg$/ix) { return get_vorbis_info($file) }
+	elsif ($file =~ /\.flac$/ix) { return   get_flac_info($file) }
+	elsif ($file =~ /\. mp3$/ix) { return    get_mp3_info($file) }
+
+	die "unknown filetype($file)";
+}
+
+main: {
 	sane() or die "Failed sanity check: $insane_error\n";
 
 	Getopt::Long::Configure ("bundling");
-	GetOptions(
-		'guesstrack|G' => \$gt,
-		'track|T=s' => \$track,
-		'track-pattern=s' => \$track_pattern,
-		'genre|g=s' => \$genre,
-		'genre-pattern=s' => \$genre_pattern,
-		'artist|a=s' => \$artist,
-		'artist-pattern=s' => \$artist_pattern,
-		'album|A=s' => \$album,
-		'album-pattern=s' => \$album_pattern,
-		'title|t=s' => \$title,
-		'title-pattern=s' => \$title_pattern,
-		'year|y=s' => \$year,
-		'comments|c=s' => \$comments,
-		'pretend|p' => \$pretend,
-		'force-title' => \$force_title,
-		'force-track' => \$force_track,
-		'recursive|r' => \$recursive,
-		'list-info|l' => \$list_info,
-		'list-genres' => \$list_genres,
-		'version|V' => \$display_version,
-		'help|h' => \$help,
-	) or exit Usage();
+	GetOptions( %Options ) or exit Usage();
 
 	   if ($help           ) { Usage() }
 	elsif ($display_version) { print "$PROGRAM $VERSION\n$COPYRIGHT" }
 	elsif ($list_genres    ) {
 		print "Valid genres in alphabetical order:\nID3 #  GENRE\n";
-		for (sort keys %id3_genres) { printf "%5d  %s\n", $id3_genres{$_}, $_ }
+		printf("%5d  %s\n", $id3_genres{$_}, $_)
+			for sort keys %id3_genres;
 	}
 	elsif ( @ARGV &&
 		  ( $gt || $list_info || $track || $genre || $artist || $album ||
-	        $title || $title_pattern || $artist_pattern || $year ||
-	        $album_pattern || $genre_pattern || $track_pattern || $comments )
+		    $title || $title_pattern || $artist_pattern || $year ||
+		    $album_pattern || $genre_pattern || $track_pattern || $comments )
 	) {
 		if (!$force_title && $title && (@ARGV > 1)) {
 			print <<WTF;
@@ -642,59 +639,32 @@ WTF
 			print <<WTF;
 
 It does not make much sense to tag multiple files with the same track number.
-That's probably not what you meant to do, so I'm stopping now.  If I'm
-mistaken and you really do want to tag multiple files with the same track
-number, pass the (undocumented) --force-track option.
+That's probably not what you meant to do, so I'm stopping now.  If I'm mistaken
+and you really do want to tag multiple files with the same track number, pass
+the (undocumented) --force-track option.
 
 WTF
 			exit 1;
 		}
-		@files = @ARGV;
 
-		while (local $_ = shift @files) {
-			if (-e) {
-				if (-l) {
-					# FIXME - must check for recursive symlinks before
-					# implementing symlink traversal
-					print "FIXME - I don't handle symlinks yet.  sorry...\n";
+		my @files = _find(@ARGV);
+
+		if ($list_info) {
+			for (@files) {
+				my %info;
+				my @info;
+
+				%info = get_info($_);
+
+				for (sort { $a cmp $b } keys %info) {
+					push @info, "=== $_: $info{$_}"
 				}
-				elsif (-d) {
-					if ($recursive) { push @files, descend_into($_) }
-					elsif (!$recursive_noted) {
-						$recursive_noted = 1;
-						print <<WTF;
 
-Pass the --recursive option if you want to descend into directories.
-
-WTF
-						sleep 1;
-					}
-				}
-				elsif ($_ =~ /\.($filetypes)$/i) {
-					if ($list_info) {
-						my %info;
-						my @info;
-
-						   if ($_ =~ /\.ogg$/i ) { %info = get_vorbis_info($_) }
-						elsif ($_ =~ /\.flac$/i) { %info =   get_flac_info($_) }
-						elsif ($_ =~ /\.mp3$/i ) { %info =    get_mp3_info($_) }
-
-						for (sort { $a cmp $b } keys %info) {
-							push @info, "=== $_: $info{$_}"
-						}
-
-						print "\n*** \`$_'\n", join("\n", @info), "\n";
-					}
-					else { set_tag($_) }
-				}
-				else {
-					my $filetype;
-
-					($filetype = $_) =~ s/.*(\..*)$/$1/;
-					print "\n*** \`$_'\nno support for $filetype files\n"
-				}
+				print "\n*** \`$_'\n", join("\n", @info), "\n";
 			}
-			else { print "I don't see any file or directory by the name \`$_'\n" }
+		}
+		else {
+			set_tag($_) for @files;
 		}
 	}
 	else { exit Usage() }

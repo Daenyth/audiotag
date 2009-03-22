@@ -1,3 +1,12 @@
+2004.06.13  Ryan McGuigan <ryan@tempestgames.com>
+	* RELEASE 0.12
+
+
+2004.06.12  Ryan McGuigan <ryan@tempestgames.com>
+	* README: bug list updated
+	* audiotag: major code cleanup, symlinks are now followed correctly
+
+
 2004.04.05  Ryan McGuigan <ryan@tempestgames.com>
 	* README: updated
 	* audiotag: minor code cleanup

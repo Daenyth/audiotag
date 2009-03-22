@@ -31,6 +31,8 @@ USAGE
 	% audiotag --pretend --title-pattern '.*?\d\d\. (.*?)\.ogg' *.ogg
 
 BUGS
-	doesn't handle symlinks
-	comment field support isn't fully functional for MP3s
+	comment field support isn't fully functional for MP3s, because for some
+	reason, comment fields in MP3s are key = value pairs...  which doesn't
+	translate to ogg and flac... and id3tag doesn't support MP3 comments fields
+	fully.
 
