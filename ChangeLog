@@ -1,5 +1,11 @@
+2007.03.13  Ryan McGuigan <ryan@tempestgames.com>
+	* patches from Matt Mead <matthewcmead at goof dot com>
+	  - add support for mp4 using AtomicParsley
+	  - bug fixes
+
+
 2006.05.18  Ryan McGuigan <ryan@tempestgames.com>
-	* applied patches from Karsten Looschen <karsten.looschen@uni-oldenburg.de>
+	* applied patches from Karsten Looschen <karsten.looschen at uni-oldenburg dot de>
 	  - ogg info fix
 	  - file renaming with directory creation / file moving addition
 

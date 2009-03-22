@@ -9,7 +9,7 @@ use File::Basename;
 use File::Path;
 use Getopt::Long;
 
-my $VERSION = '0.15';
+my $VERSION = '0.16';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
@@ -253,7 +253,7 @@ my %id3_genre_ids = map { $id3_genres{$_} => $_    } keys %id3_genres;
 sub Usage {
 	print <<USAGE;
 Usage: $0 [OPTION]... [FILE]...
-Set id3 and/or vorbis tags in mp3, ogg, and flac files.
+Set id3 and/or vorbis tags in mp3, ogg, mp4, m4a and flac files.
 
 Option:
   -G, --guesstrack              guess the track number (guess uses a simple
@@ -323,6 +323,9 @@ sub rename_file {
 
 	(my $type = $file) =~ s/.*\././;
 	(my $new_name = $rename_pattern) =~ s/%([TatAo])/$directives{$1}/ge;
+	# MCM - convert slashes in full path to dashes
+	$new_name =~ s/\//-/g;
+
 	#convert ".../newdir/" to ".../newdir/oldfilename
 	$new_name =~ s|/$|/$directives{o}|;
 
@@ -376,7 +379,10 @@ sub set_tag {
 
 	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
 	if ($genre) {
-		if ($id3_genres_UC{ uc $genre }) {
+		# MCM - make sure the genre is define, otherwise some
+		#       odd default ends up in there.  if not defined, don't
+		#       add the genre
+		if (defined($id3_genres_UC{ uc $genre })) {
 			$plus_tags{"GENRE"} = "+++";
 			$info->{"GENRE"} = $id3_genre_ids{ $id3_genres_UC{ uc $genre } };
 		}
@@ -447,6 +453,25 @@ WTF
 			push @cmd, "--set-vc-field", "$_=$info->{$_}";
 		}
 		push @cmd, $file;
+	}
+	# MCM - handle mp4 and m4a using AtomicParsley
+	elsif ($file =~ /\.mp4$/i or $file =~ /\.m4a$/i) {
+		push @cmd, "AtomicParsley";
+		push @cmd, $file;
+		foreach (sort { $a cmp $b } keys %$info) {
+			# don't need extra track num field
+			/TRACKNUMBER/ && next;
+			$plus_tags{$_} ||= "===";
+			push @result, "$plus_tags{$_} $_: $info->{$_}";
+		}
+		if ($genre   ) { push @cmd, ("--genre", uc $genre);		}
+		if ($artist  ) { push @cmd, ("--artist", $artist);		}
+		if ($album   ) { push @cmd, ("--album", $album);		}
+		if ($title   ) { push @cmd, ("--title", $title);		}
+		if ($track   ) { push @cmd, ("--track", $track);		}
+		if ($year    ) { push @cmd, ("--year", $year);			}
+		if ($comments) { push @cmd, ("--comment", $comments);	}
+		push @cmd, ("--overWrite", "--gapless", "true");
 	}
 
 	print "\n", $_pretend, "*** tagging \`$file'\n", join("\n", @result), "\n";
@@ -520,7 +545,9 @@ sub get_flac_info {
 	my ($file) = @_;
 	my %info;
 
-	foreach (split /\n/, `metaflac --export-vc-to=- @{[quotemeta $file]}`) {
+	# MCM - metaflac complains if you use old options, so use
+	#       --export-tags-to
+	foreach (split /\n/, `metaflac --export-tags-to=- @{[quotemeta $file]}`) {
 		if (/(.*?)=(.*)/) {
 			$info{ uc $1 } = $2;
 		}
@@ -549,6 +576,30 @@ sub get_mp3_info {
 	}
 
 	return %info;
+}
+
+sub get_mp4_info {
+	my ($file) = @_;
+	my %info;
+
+	foreach (split /\n/, `AtomicParsley @{[quotemeta $file]} -t`) {
+		if (/^Atom "\302\251nam" contains: (.*)$/) {
+			$info{"TITLE"} = $1;
+		} elsif (/^Atom "gnre" contains: (.*)$/) {
+			$info{"GENRE"} = $1;
+		} elsif (/^Atom "\302\251cmt" contains: (.*)$/) {
+			$info{"COMMENTS"} = $1;
+		} elsif (/^Atom "\302\251ART" contains: (.*)$/) {
+			$info{"ARTIST"} = $1;
+		} elsif (/^Atom "\302\251alb" contains: (.*)$/) {
+			$info{"ALBUM"} = $1;
+		} elsif (/^Atom "trkn" contains: (\d+)$/) {
+			$info{"TRACKNUM"} = $1;
+		} elsif (/^Atom "\302\251day" contains: (\d+)$/) {
+			$info{"YEAR"} = $1;
+		}
+	}
+	return %info
 }
 
 sub fork_exec {
@@ -592,6 +643,9 @@ sub sane {
 	check_for_prog(\@filetypes, \@missing, "mp3" , "id3info", "id3tag");
 	check_for_prog(\@filetypes, \@missing, "ogg" , "vorbiscomment"    );
 	check_for_prog(\@filetypes, \@missing, "flac", "metaflac"         );
+	# MCM - check for AtomicParsley
+	check_for_prog(\@filetypes, \@missing, "mp4", "AtomicParsley"     );
+	check_for_prog(\@filetypes, \@missing, "m4a", "AtomicParsley"     );
 
 	for (@missing) {
 		warn "WARNING: " . join(", ", @{$_->{needed}}) .
@@ -600,7 +654,7 @@ sub sane {
 
 	$filetypes = join "|", @filetypes;
 	unless ($filetypes) {
-		$insane_error = "id3info/id3tag, vorbiscomment, and metaflac ".
+		$insane_error = "id3info/id3tag, vorbiscomment, AtomicParsley and metaflac ".
 		                "not found in path!";
 		return 0;
 	}
@@ -677,6 +731,9 @@ sub get_info {
 	   if ($file =~ /\. ogg$/ix) { return get_vorbis_info($file) }
 	elsif ($file =~ /\.flac$/ix) { return   get_flac_info($file) }
 	elsif ($file =~ /\. mp3$/ix) { return    get_mp3_info($file) }
+	# MCM - handle mp4 and m4a using AtomicParsley
+	elsif ($file =~ /\. mp4$/ix) { return    get_mp4_info($file) }
+	elsif ($file =~ /\. m4a$/ix) { return    get_mp4_info($file) }
 
 	die "unknown filetype($file)";
 }
