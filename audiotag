@@ -259,7 +259,7 @@ Set id3 and/or vorbis tags in mp3, ogg, mp4, m4a and flac files.
 
 Option:
   -G, --guesstrack              guess the track number (guess uses a simple
-                                  pattern match of the filename, /(\\d\\d)\\./)
+                                  pattern match of the filename, /(\\d\\d)/)
   -T, --track=TRACK             set the track to TRACK
       --track-pattern=PATTERN   extract the track number from the filename
                                   using perl compatible regex PATTERN
@@ -392,7 +392,7 @@ sub set_tag {
 		$year =~ tr/_/ / if $convert_underscores
 	}
 
-	if ($gt && $file =~ /(\d\d)\./) { $track = $1 }
+	if ($gt && $file =~ /(\d\d)/) { $track = $1 }
 	if ($genre) {
 		# MCM - make sure the genre is define, otherwise some
 		#       odd default ends up in there.  if not defined, don't
