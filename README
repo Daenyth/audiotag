@@ -20,7 +20,7 @@ USAGE
 	Set GENRE to "Metal"
 	% audiotag -g Metal *.mp3 *.ogg
 
-	Guess and set TRACKNUM - guess track uses the simple pattern '(\d\d)\.'
+	Guess and set TRACKNUM - guess track uses the simple pattern '(\d\d)'
 	% audiotag -G *.mp3 *.ogg
 
 	Set TITLE based on a pattern match of the filename - This example would
