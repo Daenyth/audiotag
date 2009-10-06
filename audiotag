@@ -13,9 +13,10 @@ my $VERSION = '0.17';
 my $PROGRAM = "Audiotag";
 
 my $COPYRIGHT = <<COPYRIGHT;
-Written by Ryan McGuigan
+Written by Ryan McGuigan And Daenyth
 
-Copyright (C) 2004 Ryan McGuigan
+Copyright (C) 2004-2009 Ryan McGuigan
+Copyright (C) 2009 Daenyth
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2 of the License, or
