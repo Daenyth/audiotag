@@ -11,7 +11,7 @@ license=('GPL')
 depends=('flac' 'vorbis-tools' 'id3lib' 'perl' 'atomicparsley')
 source=(http://github.com/Daenyth/audiotag/tarball/v$pkgver)
 
-md5sums=('3b81a7412807e0dd17b28e6194680fd4')
+md5sums=('cf2c59209a00d406cf79b921f6a5f026')
 
 build() {
   cd "${srcdir}/Daenyth-${pkgname}-"*
